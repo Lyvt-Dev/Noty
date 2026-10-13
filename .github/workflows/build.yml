@@ -1,0 +1,80 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-x64
+          - os: macos-14
+            platform: macos-arm64
+          - os: ubuntu-24.04
+            platform: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libcurl4-openssl-dev libsecret-1-dev
+      - name: Windows installer tools
+        if: runner.os == 'Windows'
+        run: choco install nsis -y --no-progress
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Compile
+        run: cmake --build build --config Release --parallel 3
+      - name: Package
+        working-directory: build
+        run: cpack -C Release
+      - name: Rename Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem build/Noty-*.exe | Select-Object -First 1
+          Move-Item -LiteralPath $installer.FullName -Destination build/Noty-windows-x64-setup.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Noty-${{ matrix.platform }}
+          path: |
+            build/Noty-*.exe
+            build/Noty-*.zip
+            build/Noty-*.dmg
+            build/Noty-*.deb
+            build/Noty-*.tar.gz
+          if-no-files-found: error
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages
+          merge-multiple: true
+      - name: Publish preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(sed -n 's/project(Noty VERSION \([^ ]*\).*/\1/p' CMakeLists.txt)
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Version already published; bump CMake project version to publish another release."
+            exit 0
+          fi
+          cd packages
+          sha256sum * > SHA256SUMS
+          cd ..
+          gh release create "$tag" packages/* --target "$GITHUB_SHA" --title "Noty $version (Preview)" --prerelease --notes-file RELEASE_NOTES.md

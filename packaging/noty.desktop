@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Noty
+Comment=Native source code editor
+Exec=Noty %F
+Terminal=false
+Categories=Development;TextEditor;
+MimeType=text/plain;
