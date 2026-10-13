@@ -56,6 +56,10 @@ jobs:
         run: |
           $installer = Get-ChildItem build/Noty-*.exe | Select-Object -First 1
           Move-Item -LiteralPath $installer.FullName -Destination build/Noty-windows-x64-setup.exe
+      - name: Upgrade existing Windows installation
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-upgrade.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: Noty-${{ matrix.platform }}
