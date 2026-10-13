@@ -11,15 +11,19 @@ Function NotyExistingInstall
   noty_detect:
     StrCpy $R1 "JustMe"
     ReadRegStr $R0 HKCU "Software\Lyvt-Dev\Noty" ""
+    StrCmp $R0 "" +2
     IfFileExists "$R0\bin\Noty.exe" noty_use_existing 0
     StrCpy $R1 "AllUsers"
     ReadRegStr $R0 HKLM "Software\Lyvt-Dev\Noty" ""
+    StrCmp $R0 "" +2
     IfFileExists "$R0\bin\Noty.exe" noty_use_existing 0
     StrCpy $R1 "JustMe"
     ReadRegStr $R0 HKCU "Software\Lyvt-Dev\Noty 0.4.0" ""
+    StrCmp $R0 "" +2
     IfFileExists "$R0\bin\Noty.exe" noty_use_existing 0
     StrCpy $R1 "AllUsers"
     ReadRegStr $R0 HKLM "Software\Lyvt-Dev\Noty 0.4.0" ""
+    StrCmp $R0 "" noty_path_done
     IfFileExists "$R0\bin\Noty.exe" noty_use_existing noty_path_done
   noty_use_existing:
     StrCpy $INSTDIR $R0
