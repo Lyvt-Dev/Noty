@@ -6,6 +6,6 @@ Linux: Ubuntu 24.04 x64 DEB oder TGZ.
 
 Enthalten: Dokument-Tabs, Speichern mit Fehlerprüfung, Undo/Redo, Syntaxhervorhebung, Folding, wörtliche Suche/Ersetzen, Zeilennavigation, Editor-Themes und Update-Prüfung.
 
-Diese Vorschau ist noch kein vollständiger Ersatz für Notepad++. Dateien sind auf UTF-8 und 64 MiB begrenzt. Installer sind nicht signiert/notarisiert. Update-Installation erfolgt manuell nach Download.
+Diese Vorschau ist noch kein vollständiger Ersatz für Notepad++. Dateien sind auf UTF-8 und 64 MiB begrenzt. Installer sind nicht signiert/notarisiert. Updater lädt passende Installer nach Zustimmung herunter, prüft SHA-256 und öffnet die Systeminstallation.
 
-Hinweis: Diese Veröffentlichung ist als Prerelease markiert; die Update-Prüfung über /releases/latest zeigt ausschließlich stabile Releases.
+Der Updater berücksichtigt auch Vorschau-Versionen.

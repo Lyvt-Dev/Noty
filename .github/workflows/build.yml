@@ -32,9 +32,11 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Compile
         run: cmake --build build --config Release --parallel 3
+      - name: Test update validation
+        run: ctest --test-dir build -C Release --output-on-failure
       - name: Package
         working-directory: build
-        run: cpack -C Release
+        run: cpack -C Release -D CPACK_PACKAGE_FILE_NAME=Noty-${{ matrix.platform }}
       - name: Rename Windows installer
         if: runner.os == 'Windows'
         shell: pwsh

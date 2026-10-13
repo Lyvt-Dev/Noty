@@ -1,6 +1,6 @@
 # Noty
 
-Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.1.0.
+Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.2.0.
 
 ## Architektur und Oberfläche
 
@@ -37,7 +37,7 @@ Windows erhält eine Setup.exe und eine ZIP, macOS eine DMG und Linux eine DEB p
 
 ## Updates
 
-Hilfe → Nach Updates suchen fragt GitHub asynchron über HTTPS ab. Stabile höhere SemVer-Versionen führen nach Zustimmung zur festen GitHub-Download-Seite. Es wird kein Code aus Release-Metadaten ausgeführt. Kein automatischer Hintergrund-Download, keine stille Installation. Preview-Releases werden bewusst nicht als stabile Updates angeboten.
+Hilfe → Nach Updates suchen fragt GitHub asynchron über HTTPS ab und berücksichtigt Vorschau-Releases. Höhere Versionen können nach Zustimmung direkt heruntergeladen werden. Der Updater wählt exakt das zur Plattform passende Installer-Asset aus diesem Repository und prüft dessen SHA-256-Digest gegen GitHubs HTTPS-Metadaten. Erst danach wird nach erneuter Zustimmung der Installer bzw. das Systemprogramm für DMG/DEB geöffnet. Keine stille Installation. Das laufende Noty muss vor dem Ersetzen geschlossen werden. SHA-256 ersetzt keine Codesignatur; Installer bleiben vorerst unsigniert.
 
 ## Manuelle Prüfung
 
