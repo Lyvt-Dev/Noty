@@ -34,7 +34,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Compile
-        run: cmake --build build --config Release --parallel 3
+        run: cmake --build build --config Release --target Noty update_test --parallel 3
       - name: Test update validation
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Package

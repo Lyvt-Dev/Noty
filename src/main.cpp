@@ -19,10 +19,10 @@
 #endif
 enum { ID_FIND=wxID_HIGHEST+1, ID_NEXT, ID_REPLACE, ID_THEME, ID_UPDATE, ID_GOTO,
        ID_ALLSAVE, ID_FONT, ID_LF, ID_CRLF };
-class Document : public wxStyledTextCtrl {
+class NotyDocument : public wxStyledTextCtrl {
 public:
     wxString path;
-    explicit Document(wxWindow* parent) : wxStyledTextCtrl(parent) {
+    explicit NotyDocument(wxWindow* parent) : wxStyledTextCtrl(parent) {
         SetCodePage(wxSTC_CP_UTF8);
         SetMarginType(0,wxSTC_MARGIN_NUMBER); SetMarginWidth(0,48);
         SetMarginType(1,wxSTC_MARGIN_SYMBOL); SetMarginMask(1,wxSTC_MASK_FOLDERS);
@@ -100,24 +100,24 @@ public:
         }
     }
 };
-class Frame : public wxFrame {
+class NotyFrame : public wxFrame {
     wxAuiNotebook* tabs_;
     bool dark_=true;
     wxString query_;
     std::unique_ptr<Updater> updater_;
-    Document* Current() const { return dynamic_cast<Document*>(tabs_->GetCurrentPage()); }
-    wxString Label(Document* d) const {
+    NotyDocument* Current() const { return dynamic_cast<NotyDocument*>(tabs_->GetCurrentPage()); }
+    wxString Label(NotyDocument* d) const {
         return (d->path.empty() ? wxString("Unbenannt") : wxFileName(d->path).GetFullName()) +
             (d->GetModify() ? " *" : "");
     }
-    void RefreshLabel(Document* d) {
+    void RefreshLabel(NotyDocument* d) {
         int index=tabs_->GetPageIndex(d);
         if(index!=wxNOT_FOUND) tabs_->SetPageText(index,Label(d));
     }
     void ApplyTheme() {
         SetBackgroundColour(dark_?wxColour(24,26,31):wxColour(250,250,252));
         for(size_t i=0;i<tabs_->GetPageCount();++i)
-            static_cast<Document*>(tabs_->GetPage(i))->Theme(dark_);
+            static_cast<NotyDocument*>(tabs_->GetPage(i))->Theme(dark_);
 #ifdef __WXMSW__
         auto hwnd=reinterpret_cast<HWND>(GetHandle());
         BOOL enabled=dark_;
@@ -129,7 +129,7 @@ class Frame : public wxFrame {
         Refresh();
     }
     void New() {
-        auto* d=new Document(tabs_);
+        auto* d=new NotyDocument(tabs_);
         tabs_->AddPage(d,"Unbenannt",true); d->Language(); d->Theme(dark_);
         d->Bind(wxEVT_STC_SAVEPOINTLEFT,[this,d](wxStyledTextEvent&){RefreshLabel(d);});
         d->Bind(wxEVT_STC_SAVEPOINTREACHED,[this,d](wxStyledTextEvent&){RefreshLabel(d);});
@@ -139,7 +139,7 @@ class Frame : public wxFrame {
         });
         d->SetFocus();
     }
-    bool Save(Document* d,bool saveAs=false) {
+    bool Save(NotyDocument* d,bool saveAs=false) {
         wxString path=d->path;
         if(path.empty()||saveAs) {
             wxFileDialog dialog(this,"Speichern",wxEmptyString,path,"Alle Dateien (*.*)|*.*",
@@ -161,7 +161,7 @@ class Frame : public wxFrame {
         }
         d->path=path; d->SetSavePoint(); d->Language(); d->Theme(dark_); RefreshLabel(d); return true;
     }
-    bool Confirm(Document* d) {
+    bool Confirm(NotyDocument* d) {
         if(!d->GetModify()) return true;
         int answer=wxMessageBox("Änderungen in "+Label(d)+" speichern?","Noty",
             wxYES_NO|wxCANCEL|wxICON_QUESTION,this);
@@ -182,7 +182,7 @@ class Frame : public wxFrame {
         else SetStatusText("Suchtext nicht gefunden");
     }
 public:
-    Frame() : wxFrame(nullptr,wxID_ANY,"Noty",wxDefaultPosition,wxSize(1100,750)) {
+    NotyFrame() : wxFrame(nullptr,wxID_ANY,"Noty",wxDefaultPosition,wxSize(1100,750)) {
         wxConfig config("Noty"); config.Read("dark",&dark_,true);
         auto* file=new wxMenu;
         file->Append(wxID_NEW,"&Neu\tCtrl+N"); file->Append(wxID_OPEN,"Ö&ffnen…\tCtrl+O");
@@ -213,7 +213,7 @@ public:
                 wxFileDialog dialog(this,"Öffnen",wxEmptyString,wxEmptyString,"Alle Dateien (*.*)|*.*",wxFD_OPEN|wxFD_FILE_MUST_EXIST|wxFD_MULTIPLE);
                 if(dialog.ShowModal()==wxID_OK){wxArrayString paths;dialog.GetPaths(paths);for(auto& p:paths) Open(p);}break;}
             case wxID_SAVE:if(d)Save(d);break;case wxID_SAVEAS:if(d)Save(d,true);break;
-            case ID_ALLSAVE:for(size_t i=0;i<tabs_->GetPageCount();++i)if(!Save(static_cast<Document*>(tabs_->GetPage(i))))break;break;
+            case ID_ALLSAVE:for(size_t i=0;i<tabs_->GetPageCount();++i)if(!Save(static_cast<NotyDocument*>(tabs_->GetPage(i))))break;break;
             case wxID_CLOSE:if(d&&Confirm(d))tabs_->DeletePage(tabs_->GetSelection());break;
             case wxID_EXIT:Close();break;case wxID_UNDO:if(d)d->Undo();break;case wxID_REDO:if(d)d->Redo();break;
             case wxID_CUT:if(d)d->Cut();break;case wxID_COPY:if(d)d->Copy();break;case wxID_PASTE:if(d)d->Paste();break;
@@ -240,18 +240,18 @@ public:
             }
         });
         tabs_->Bind(wxEVT_AUINOTEBOOK_PAGE_CLOSE,[this](wxAuiNotebookEvent& e){
-            auto* d=static_cast<Document*>(tabs_->GetPage(e.GetSelection()));if(!Confirm(d))e.Veto();
+            auto* d=static_cast<NotyDocument*>(tabs_->GetPage(e.GetSelection()));if(!Confirm(d))e.Veto();
         });
         Bind(wxEVT_CLOSE_WINDOW,[this](wxCloseEvent& e){
             for(size_t i=0;i<tabs_->GetPageCount();++i)
-                if(!Confirm(static_cast<Document*>(tabs_->GetPage(i)))){e.Veto();return;}
+                if(!Confirm(static_cast<NotyDocument*>(tabs_->GetPage(i)))){e.Veto();return;}
             Destroy();
         });
         New(); ApplyTheme();
     }
     void Open(const wxString& path) {
         for(size_t i=0;i<tabs_->GetPageCount();++i) {
-            auto* d=static_cast<Document*>(tabs_->GetPage(i));
+            auto* d=static_cast<NotyDocument*>(tabs_->GetPage(i));
             if(d->path==path){tabs_->SetSelection(i);return;}
         }
         wxFile input(path);
@@ -263,12 +263,12 @@ public:
         d->Language();d->Theme(dark_);RefreshLabel(d);
     }
 };
-class App : public wxApp {
+class NotyApp : public wxApp {
 public:
     bool OnInit() override {
-        SetAppName("Noty");auto* frame=new Frame;frame->Show();
+        SetAppName("Noty");auto* frame=new NotyFrame;frame->Show();
         for(int i=1;i<argc;++i)frame->Open(argv[i]);
         return true;
     }
 };
-wxIMPLEMENT_APP(App);
+wxIMPLEMENT_APP(NotyApp);
