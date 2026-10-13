@@ -37,6 +37,7 @@ set_target_properties(Noty PROPERTIES MACOSX_BUNDLE_BUNDLE_NAME Noty MACOSX_BUND
 add_executable(NotyUpdate src/update_helper.cpp)
 target_include_directories(NotyUpdate PRIVATE ${picosha2_SOURCE_DIR})
 if(WIN32)
+  set_property(TARGET NotyUpdate PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   target_link_libraries(NotyUpdate PRIVATE shell32)
   if(MSVC)
     target_compile_options(NotyUpdate PRIVATE /utf-8 /W4)

@@ -18,7 +18,9 @@ $setup = (Resolve-Path 'build\Noty-windows-x64-setup.exe').Path
 $digest = (Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
 # Exercise the shipped native helper, including waiting for a live parent.
 $parent = Start-Process -FilePath 'pwsh' -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 3' -PassThru -WindowStyle Hidden
-$update = Start-Process -FilePath (Resolve-Path 'build\Release\NotyUpdate.exe').Path -ArgumentList "$($parent.Id)","`"$setup`"",$digest,"`"$installed`"",'close' -Wait -PassThru -WindowStyle Hidden
+$stagedHelper = Join-Path $env:RUNNER_TEMP 'NotyUpdate-staged.exe'
+Copy-Item -LiteralPath 'build\Release\NotyUpdate.exe' -Destination $stagedHelper
+$update = Start-Process -FilePath $stagedHelper -ArgumentList "$($parent.Id)","`"$setup`"",$digest,"`"$installed`"",'close' -Wait -PassThru -WindowStyle Hidden
 if ($update.ExitCode -ne 0) { throw 'Update installer failed' }
 if ((Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash -ne $expected) { throw 'Existing installation was not updated in place' }
 if ((Get-Content -LiteralPath $marker) -ne 'preserve-existing-user-data') { throw 'Update removed existing user data' }
