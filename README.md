@@ -1,6 +1,6 @@
 # Noty
 
-Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.2.0.
+Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.3.0.
 
 ## Architektur und Oberfläche
 
