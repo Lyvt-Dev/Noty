@@ -1,60 +1,76 @@
 # Noty
 
-Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.4.0.
+Native C++20 text and source editor for Windows, macOS and Linux. Version 0.5.0 is a preview, not a claim of complete Notepad++ parity.
 
-## Architektur und Oberfläche
+## Oberfläche
 
-wxWidgets verwendet Win32, Cocoa bzw. GTK. Scintilla (wxStyledTextCtrl) liefert Textpuffer, Undo/Redo, Rendering, Zeilennummern und Lexer. So bleibt der Editor ohne Qt, Electron, .NET oder Weboberfläche plattformübergreifend. Eine eigene Textengine wäre deutlich aufwendiger und würde zunächst weniger ausgereifte Eingabe- und Accessibility-Unterstützung bieten.
+Die Standardansicht folgt dem Windows-11-Notepad-Layout: Dokument-Tabs im Titelbereich, drei kompakte Menüs, Einstellungsmenü rechts, helle Papierfläche, Monospace-Schrift und schmale Statusleiste. Erweiterte Werkzeuge sind optional. Windows behält System-Resizing, Titelbereich-Dragging, Doppelklick-Maximieren und `HTMAXBUTTON` für Snap Layouts. Rounded Corners und System-Backdrop werden über DWM angefordert; nicht unterstützte Systeme verwenden solide Farben. Die eigene GDI-Tableiste ist deckend.
 
-Windows erhält DWM Dark Titlebar, Rounded Corners und einen Mica-Backdrop, soweit das Betriebssystem sie unterstützt. Die Standard-Titelleiste bewahrt Snap Layouts und native Fensterbedienung. Die Vorschau hat noch keine maßgeschneiderte Fluent Command Bar oder animierten Flyouts. Ein Mica-Backdrop kann hinter deckenden nativen Controls nicht sichtbar sein.
+Alle deutschen Oberflächentexte verwenden ausdrückliche UTF-8-Konvertierung. Windows-ANSI-Codepages bestimmen ihre Darstellung nicht mehr. Die Regex-Suche arbeitet mit Unicode über wxRegEx/PCRE2; ein Punkt kann auch ein einzelnes mehrbyteiges Zeichen wie `ß` oder ein Emoji treffen.
 
-## Dateien
+## Funktionsumfang
 
-- CMakeLists.txt: Abhängigkeiten, C++20, Plattform-Linking und CPack
-- src/main.cpp: native Oberfläche, Dokumente, Scintilla, Suche und Themes
-- src/updater.h / src/updater.cpp: asynchrone Release-Abfrage, SHA-256-Prüfung und Installer-Download
-- packaging/noty.desktop: Linux Desktop-Eintrag
-- .github/workflows/build.yml: drei native Builds, Installer und Preview-Releases
-- RELEASE_NOTES.md: Lieferumfang und Einschränkungen
+| Bereich | Vorhanden | Grenze |
+|---|---|---|
+| Dokumente | Mehrere Tabs, Drag-Reihenfolge, Schließen, andere/alle schließen, geschlossenen Tab wieder öffnen | Keine abgetrennten Fenster/Tab-Pinning |
+| Dateien | Hintergrund-Laden, Speichern, Speichern unter, alle speichern, Fehlerschutz | Maximal 128 MiB; Speichern läuft noch im UI-Thread |
+| Encodings | UTF-8, UTF-8 BOM, UTF-16 LE/BE mit BOM, Windows-1252, ISO-8859-1 | Kein vollständiger Codepage-Katalog; nicht darstellbare Zeichen lösen einen Fehler aus |
+| Zeilenenden | LF, CRLF und CR erkennen/konvertieren | Reopen-/Session-EOL-Einstellungen noch nicht vollständig unabhängig konfigurierbar |
+| Bearbeiten | Undo/Redo, Zwischenablage, Zeile duplizieren/löschen, Groß-/Kleinschreibung, Sortieren, Trim, Tabs/Spaces | Kein vollständiger Satz aller Notepad++-Zeilenoperationen |
+| Suchen | Literal/Regex, Case, Whole Word, vorwärts/rückwärts, alle Tabs, Ersetzen, alle ersetzen, Trefferliste | Keine identische Notepad++-Suchdialog-/Regex-Ersetzungssemantik für jede Spezialsyntax |
+| Ordnersuche | Hintergrund-Suche mit Trefferliste und Dateisprung | Zeilenbasiert, 16 MiB je Datei, höchstens 10.000 Treffer; `.git`, `build`, `node_modules` ausgeschlossen |
+| Syntax | Automatische Scintilla-Lexer für C/C++, Python, JSON, HTML/XML/PHP, CSS, JS/TS, Markdown, Batch, Rust, SQL, YAML, Shell, Lua, PowerShell und weitere; manuelle Sprachwahl | Nicht alle Sprachstile/Keywords gleich detailliert; keine UDL-Import-Kompatibilität |
+| Navigation | Gehe zu Zeile, Lesezeichen, Klammermarkierung, Folding, Einrückung | Keine Function List oder Document Map |
+| Ansichten | Optionale Zeilennummern, Whitespace, Guides, Wrap, Zoom, Schriftwahl, Light/Dark, Projektordner, zwei Ansichten eines gemeinsamen Puffers | Einige Menüaktionen beziehen sich auf die Hauptansicht |
+| Mehrfachauswahl | Scintilla Multiple Selection, zusätzliche Eingabe, Rechteckauswahl | Kein Notepad++ Column Editor mit Nummernreihen |
+| Makros | Text-Insert/Delete aufnehmen, gruppiert wiedergeben, JSON laden/speichern | Keine vollständige Aufzeichnung von Navigation, Menü- und Suchaktionen |
+| Sitzung | Offene Tabs, Cursor, View-Einstellungen; regelmäßige JSON-Backups geänderter Puffer | Backup nur bis 8 MiB je Puffer; keine vollständige Disaster-Recovery-Garantie |
+| Plugins | Explizites Laden nativer Noty-ABI-v1-Plugins; Beispiel-Plugin | Notepad++-DLLs verwenden eine andere ABI und sind nicht kompatibel |
+| Updates | Release-Prüfung, Plattform-Installer, HTTPS, SHA-256 vor dem Öffnen der Installation | Zustimmung erforderlich; macOS/Linux verwenden die Systeminstallation |
+| Accessibility/DPI | Native Editor-Eingabe, Tastenkürzel, PerMonitorV2-Manifest | Eigene Tabs haben noch keine vollständige UIA-Struktur; breite Screenreader-/Monitorprüfungen stehen aus |
 
-## Build
+Weitere offene Notepad++-Bereiche: Shortcut Mapper, vollständiger Style Configurator, User Defined Languages, Plugin Admin/Katalog, Run-Kommandos, Drucken/Print Preview, File Monitoring/tail, vollständiger Spalteneditor, Function List, Document Map, vollständige Sprach-/Codepage-Abdeckung, Sucheinstellungen und alle seltenen Menü-/Tastenkombinationen. Referenz für die weitere Paritätsarbeit: [offizielles Notepad++-Handbuch](https://npp-user-manual.org/docs/user-interface/).
 
-Voraussetzungen: CMake >= 3.24, C++20-Compiler, Git und Internet für die erstmalige Abhängigkeitsauflösung.
-Windows: Visual Studio 2022 mit Desktop C++, Windows SDK, NSIS.
-macOS: Xcode Command Line Tools.
-Ubuntu 24.04: build-essential cmake git libgtk-3-dev libcurl4-openssl-dev libsecret-1-dev.
+## Updates von Version 0.4
+
+Hilfe bzw. Einstellungsmenü → Nach Updates suchen. Der bisherige Updater konvertierte JSON-Daten über die lokale ANSI-Codepage. Die Release-Pipeline hält die sichtbaren Release-Texte für diesen alten Client ASCII-kompatibel und korrigiert die Metadaten von v0.4.0. Installer, Tags und deren Prüfsummen werden dabei nicht verändert.
+
+Ein Installer-Update aktualisiert die vorhandene Anwendung; eine vorherige Deinstallation ist nicht nötig. Die neue Windows-Version bittet vor dem Start der Installation um Schließen und prüft dabei ungespeicherte Dokumente. Der alte v0.4-Client muss wie in seinem Dialog beschrieben manuell geschlossen werden. Portable ZIP-Versionen haben noch keinen verifizierten Austausch der laufenden ZIP-Installation.
+
+Dateien werden nur aus `Lyvt-Dev/Noty` geladen; ein exakter Assetname, eine feste GitHub-URL und ein SHA-256-Digest werden geprüft. SHA-256 ersetzt keine Codesignatur. Windows-Installer sind noch unsigniert, macOS-Pakete nicht notarisiert. Apple-Zugangsdaten und Signierzertifikate sind nicht enthalten.
+
+## Architektur und Build
+
+wxWidgets: Win32/Cocoa/GTK. Scintilla: Puffer, Eingabe, Undo/Redo, Lexer und Rendering. Eigene Module: Chrome, Dokumente, Codec, Unicode-Suche, Sitzungen, Plugin-ABI und Updater. Keine Electron-, Qt- oder .NET-Oberfläche.
+
+Voraussetzungen: CMake >=3.24, Git und C++20-Compiler. Windows: Visual Studio C++ + Windows SDK, NSIS für Setup-Pakete. macOS: Xcode Command Line Tools. Ubuntu 24.04: `libgtk-3-dev libcurl4-openssl-dev libsecret-1-dev`.
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --parallel 3
+cmake --build build --config Release --target Noty update_test codec_test ui_text_test search_test noty_example_plugin --parallel 3
+ctest --test-dir build -C Release --output-on-failure
 cd build
 cpack -C Release
 ```
 
-GitHub Actions baut Windows x64, macOS ARM64 und Ubuntu Linux x64. Nur wenn alle Builds erfolgreich sind, veröffentlicht ein main-Push eine neue Preview-Version. Bereits veröffentlichte Versionen werden nicht überschrieben. Für die nächste Version PROJECT_VERSION in CMakeLists.txt erhöhen.
+GitHub Actions baut Windows x64, macOS Apple Silicon und Ubuntu 24.04 x64. Nur ein erfolgreicher Lauf aller Plattformen veröffentlicht die neue Version. CMake-Projektversion erhöhen, um einen neuen Release anzulegen. Bereits veröffentlichte Versionen werden nicht überschrieben.
 
-Windows erhält eine Setup.exe und eine ZIP, macOS eine DMG und Linux eine DEB plus TGZ. Die Linux-Pakete sind auf Ubuntu 24.04 ausgerichtet; keine Zusage für jede Distribution. macOS Intel ist noch nicht in der Build-Matrix.
+```sh
+Noty --portable
+Noty --no-session file.txt
+Noty --smoke-test
+```
 
-## Updates
+`--portable` speichert die Sitzung beim Programm, sonst im Benutzerprofil. Der Testmodus verwendet ein separates Profil neben dem Testprogramm und überschreibt die normale Sitzung nicht.
 
-Hilfe → Nach Updates suchen fragt GitHub asynchron über HTTPS ab und berücksichtigt Vorschau-Releases. Höhere Versionen können nach Zustimmung direkt heruntergeladen werden. Der Updater wählt exakt das zur Plattform passende Installer-Asset aus diesem Repository und prüft dessen SHA-256-Digest gegen GitHubs HTTPS-Metadaten. Erst danach wird nach erneuter Zustimmung der Installer bzw. das Systemprogramm für DMG/DEB geöffnet. Keine stille Installation. Das laufende Noty muss vor dem Ersetzen geschlossen werden. SHA-256 ersetzt keine Codesignatur; Installer bleiben vorerst unsigniert.
+## Tests
 
-## Manuelle Prüfung
+Automatisch: SemVer/SHA-256-Grundprüfung, UTF-8/BOM/UTF-16/1252-Roundtrips einschließlich Umlauten und Emojis, fehlerhafte Encodings, Unicode-Menütexte und Regex-Dot/Lookbehind/Rückverweise/Null-Längen-Treffer. Der Anwendungstest prüft echte Editor-Operationen, Undo, Lesezeichen, gemeinsamen Split-Puffer, Makro-Aufnahme/-Wiedergabe und UTF-16-Speichern mit deutschem Dateinamen. Windows und Linux führen ihn in CI aus.
 
-1. Zwei UTF-8-Dateien öffnen, ändern, speichern, schließen und erneut öffnen.
-2. Schließen mit Speichern / Verwerfen / Abbrechen prüfen; bei nicht beschreibbarem Ziel muss das Dokument geöffnet bleiben.
-3. Undo/Redo und Ersetzen mit mehrsprachigem Text prüfen.
-4. Syntax und Folding in C++, Python, JSON, HTML, CSS, Markdown und Batch prüfen.
-5. Light/Dark, Schriftwahl, LF/CRLF und 100–200 % DPI prüfen.
-6. Ohne Netzwerk Update-Prüfung ausführen: Oberfläche bleibt bedienbar, Fehlermeldung erscheint.
-7. Installer auf frischem Rechner installieren und deinstallieren; macOS-DMG und Linux-DEB prüfen.
+Zusätzlich manuell prüfen: Snap Layouts auf Windows 11, mehrere DPI-Monitore, Tab-Dragging mit vielen Dokumenten, Screenreader, Installer-Upgrade von v0.4, Schrift-/Theme-Wechsel und Plattformdialoge. Ein erfolgreicher Build ist kein Nachweis für fehlerfreie Bedienung auf jedem Betriebssystem.
 
-Die CI bestätigt Kompilierung und Paketbau, ersetzt aber keine visuellen oder interaktiven Plattformtests.
+## Logo und Plugin-ABI
 
-## Grenzen und Fahrplan
+`assets/noty-logo.png` ist das neue, mit Imagegen erzeugte Original. `noty.ico`, `noty.icns` und der eingebettete 64-px-PNG sind technische App-Icon-Konvertierungen. Das Logo ist ein eigenes Noty-Zeichen; keine Microsoft- oder Notepad++-Marke.
 
-Die umfangreiche Ausgangsspezifikation ist noch nicht vollständig implementiert. Offen sind UTF-16/ANSI und BOM-Erhaltung, asynchrones Datei-I/O, große Dateien über 64 MiB, Regex/Whole Word/Suche über alle Tabs, Explorer, Session/Crash-Recovery, Makros, Plugin-ABI, eigene Fluent-Titelleiste, benutzerdefinierte Themes, explizite UI-Automation-Prüfung, Split View und Multi-Cursor.
-
-Nächster Schritt: Encoding-Layer, Hintergrund-I/O, Sessions und Regex-Suche.
-Danach: Explorer, Makros, Plugin-ABI und Fluent-Oberfläche.
-V1.0: signierte Windows-Installer, macOS-Notarisierung, automatischer Neustart nach Update, Intel-Mac und weitere Linux-Paketformate. Signierzertifikate und Apple-Zugangsdaten müssen dafür als GitHub Secrets bereitgestellt werden.
+`src/plugin_api.h` beschreibt eine C-ABI v1. Ein Plugin exportiert `noty_plugin_v1`, liefert ABI-Version, UTF-8-Namen und eine synchrone Execute-Funktion. Host-Pointer bleiben nur während dieses Aufrufs gültig. Plugins arbeiten auf dem UI-Thread und dürfen keine Host-Pointer für Hintergrundzugriffe behalten. Nur vertrauenswürdige Plugins laden: nativer Code ist nicht sandboxed.

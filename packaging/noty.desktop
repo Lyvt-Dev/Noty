@@ -1,6 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Noty
+Icon=noty
 Comment=Native source code editor
 Exec=Noty %F
 Terminal=false

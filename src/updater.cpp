@@ -1,4 +1,5 @@
 #include "updater.h"
+#include "ui_text.h"
 #include <nlohmann/json.hpp>
 #include <array>
 #include <wx/file.h>
@@ -24,7 +25,7 @@ void Updater::Check() {
     request_=wxWebSession::GetDefault().CreateRequest(this,
         "https://api.github.com/repos/Lyvt-Dev/Noty/releases?per_page=20");
     if(!request_.IsOk()) {
-        wxMessageBox("Update-Dienst nicht verfügbar.", "Noty", wxOK|wxICON_ERROR, owner_); return;
+        wxMessageBox("Update-Dienst nicht verfügbar."_n, "Noty", wxOK|wxICON_ERROR, owner_); return;
     }
     request_.SetHeader("Accept","application/vnd.github+json");
     request_.SetHeader("User-Agent","Noty/" NOTY_VERSION);
@@ -32,12 +33,12 @@ void Updater::Check() {
 }
 void Updater::OnState(wxWebRequestEvent& event) {
     if(event.GetState()==wxWebRequest::State_Failed || event.GetState()==wxWebRequest::State_Unauthorized) {
-        wxMessageBox("Updates konnten nicht geprüft werden. Bitte später erneut versuchen.",
+        wxMessageBox("Updates konnten nicht geprüft werden. Bitte später erneut versuchen."_n,
             "Noty",wxOK|wxICON_WARNING,owner_); return;
     }
     if(event.GetState()!=wxWebRequest::State_Completed) return;
     if(event.GetResponse().GetStatus()==404) {
-        wxMessageBox("Es ist noch kein Release verfügbar.","Noty",wxOK,owner_); return;
+        wxMessageBox("Es ist noch kein Release verfügbar."_n,"Noty",wxOK,owner_); return;
     }
     try {
         if(download_.IsOk() && event.GetRequest().GetId()==2) {
@@ -60,15 +61,21 @@ void Updater::OnState(wxWebRequestEvent& event) {
             wxString destination=base+suffix_;
             if(!wxCopyFile(source,destination,false)) {wxRemoveFile(base);throw std::runtime_error("Copy");}
             wxRemoveFile(base);
-            if(wxMessageBox("Das Update wurde heruntergeladen und die SHA-256-Prüfsumme bestätigt.\n"
-                "Bitte Dokumente speichern und Noty schließen. Installer jetzt öffnen?",
+            if(wxMessageBox("Das Update wurde heruntergeladen und die SHA-256-Prüfsumme bestätigt.\n"_n
+                "Bitte Dokumente speichern und Noty schließen. Installer jetzt öffnen?"_n,
                 "Noty Update",wxYES_NO|wxICON_INFORMATION,owner_)==wxYES)
+            {
+#ifdef __WXMSW__
+                if(owner_->Close())wxLaunchDefaultApplication(destination);
+#else
                 wxLaunchDefaultApplication(destination);
+#endif
+            }
             else wxMessageBox("Update gespeichert unter:\n"+destination,"Noty Update",wxOK,owner_);
             return;
         }
         if(event.GetResponse().GetStatus()!=200) throw std::runtime_error("HTTP");
-        auto releases=nlohmann::json::parse(event.GetResponse().AsString().ToStdString());
+        auto releases=nlohmann::json::parse(event.GetResponse().AsString().ToStdString(wxConvUTF8));
         nlohmann::json data;
         std::array<int,3> newest{};
         for(const auto& release:releases) {
@@ -76,7 +83,7 @@ void Updater::OnState(wxWebRequestEvent& event) {
             auto version=Version(release.at("tag_name").get<std::string>());
             if(version && *version>newest) {newest=*version;data=release;}
         }
-        if(data.is_null()) {wxMessageBox("Noch keine passende Version verfügbar.","Noty",wxOK,owner_);return;}
+        if(data.is_null()) {wxMessageBox("Noch keine passende Version verfügbar."_n,"Noty",wxOK,owner_);return;}
         auto remote=Version(data.at("tag_name").get<std::string>());
         auto local=Version(NOTY_VERSION);
         if(!remote || !local) throw std::runtime_error("Version");
@@ -103,8 +110,8 @@ void Updater::OnState(wxWebRequestEvent& event) {
                 data.at("tag_name").get<std::string>()+"/"+wanted;
             if(url!=expected || digest.size()!=71 || !digest.starts_with("sha256:") ||
                 size<=0 || size>256*1024*1024) throw std::runtime_error("Asset");
-            if(wxMessageBox("Eine neue Version ist verfügbar (auch Vorschau-Versionen).\n"
-                "Update herunterladen und prüfen?","Noty Update",
+            if(wxMessageBox("Eine neue Version ist verfügbar (auch Vorschau-Versionen).\n"_n
+                "Update herunterladen und prüfen?"_n,"Noty Update",
                 wxYES_NO|wxICON_INFORMATION,owner_)!=wxYES) return;
             digest_=digest.substr(7);
             download_=wxWebSession::GetDefault().CreateRequest(this,wxString::FromUTF8(url.c_str()),2);
@@ -113,10 +120,10 @@ void Updater::OnState(wxWebRequestEvent& event) {
             download_.SetHeader("User-Agent","Noty/" NOTY_VERSION);
             download_.Start();return;
         }
-        wxMessageBox("Für diese Plattform fehlt ein Installer. Die Release-Seite wird geöffnet.",
+        wxMessageBox("Für diese Plattform fehlt ein Installer. Die Release-Seite wird geöffnet."_n,
             "Noty",wxOK,owner_);
         wxLaunchDefaultBrowser("https://github.com/Lyvt-Dev/Noty/releases");
     } catch(...) {
-        wxMessageBox("Ungültige Antwort vom Update-Dienst.","Noty",wxOK|wxICON_WARNING,owner_);
+        wxMessageBox("Ungültige Antwort vom Update-Dienst."_n,"Noty",wxOK|wxICON_WARNING,owner_);
     }
 }

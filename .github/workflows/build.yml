@@ -18,7 +18,7 @@ jobs:
         include:
           - os: windows-latest
             platform: windows-x64
-          - os: macos-14
+          - os: macos-15
             platform: macos-arm64
           - os: ubuntu-24.04
             platform: linux-x64
@@ -27,16 +27,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libcurl4-openssl-dev libsecret-1-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libcurl4-openssl-dev libsecret-1-dev xvfb
       - name: Windows installer tools
         if: runner.os == 'Windows'
         run: choco install nsis -y --no-progress
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Compile
-        run: cmake --build build --config Release --target Noty update_test --parallel 3
+        run: cmake --build build --config Release --target Noty update_test codec_test ui_text_test search_test noty_example_plugin --parallel 3
       - name: Test update validation
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Windows application smoke test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $notyTest = Start-Process build/Release/Noty.exe -ArgumentList '--smoke-test' -Wait -PassThru -WindowStyle Hidden
+          if ($notyTest.ExitCode -ne 0) { throw 'Noty application smoke test failed' }
+          Get-Content build/Release/smoke-test.txt
+      - name: Linux application smoke test
+        if: runner.os == 'Linux'
+        run: xvfb-run -a build/Noty --smoke-test
       - name: Package
         working-directory: build
         run: cpack -C Release -D CPACK_PACKAGE_FILE_NAME=Noty-${{ matrix.platform }}
@@ -82,4 +92,10 @@ jobs:
           cd packages
           sha256sum * > SHA256SUMS
           cd ..
-          gh release create "$tag" packages/* --target "$GITHUB_SHA" --title "Noty $version (Preview)" --prerelease --notes-file RELEASE_NOTES.md
+          python scripts/legacy_release_text.py RELEASE_NOTES.md release-notes-ascii.txt
+          if gh release view v0.4.0 >/dev/null 2>&1; then
+            legacy_id=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v0.4.0" --jq .id)
+            gh api "repos/$GITHUB_REPOSITORY/releases/$legacy_id" | python scripts/legacy_release_text.py > legacy-release-patch.json
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$legacy_id" --input legacy-release-patch.json >/dev/null
+          fi
+          gh release create "$tag" packages/* --target "$GITHUB_SHA" --title "Noty $version (Preview)" --prerelease --notes-file release-notes-ascii.txt
