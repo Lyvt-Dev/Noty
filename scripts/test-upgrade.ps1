@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$upgradeRoot = Join-Path $env:RUNNER_TEMP 'NotyUpgradeTest'
+$upgradeRoot = Join-Path $env:RUNNER_TEMP 'Noty Upgrade Grüße'
 $legacySetup = Join-Path $env:RUNNER_TEMP 'Noty-legacy-setup.exe'
 $release = Invoke-RestMethod 'https://api.github.com/repos/Lyvt-Dev/Noty/releases/tags/v0.5.0'
 $asset = $release.assets | Where-Object name -eq 'Noty-windows-x64-setup.exe'
