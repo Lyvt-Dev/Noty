@@ -12,7 +12,7 @@ Windows erhält DWM Dark Titlebar, Rounded Corners und einen Mica-Backdrop, sowe
 
 - CMakeLists.txt: Abhängigkeiten, C++20, Plattform-Linking und CPack
 - src/main.cpp: native Oberfläche, Dokumente, Scintilla, Suche und Themes
-- src/updater.h / src/updater.cpp: asynchrone Release-Abfrage und Download-Seite
+- src/updater.h / src/updater.cpp: asynchrone Release-Abfrage, SHA-256-Prüfung und Installer-Download
 - packaging/noty.desktop: Linux Desktop-Eintrag
 - .github/workflows/build.yml: drei native Builds, Installer und Preview-Releases
 - RELEASE_NOTES.md: Lieferumfang und Einschränkungen
@@ -57,4 +57,4 @@ Die umfangreiche Ausgangsspezifikation ist noch nicht vollständig implementiert
 
 V0.2: Encoding-Layer, Hintergrund-I/O, Sessions und Regex-Suche.
 V0.3: Explorer, Makros, Plugin-ABI und Fluent-Oberfläche.
-V1.0: signierte Windows-Installer, macOS-Notarisierung, verifizierter automatischer Updater, Intel-Mac und weitere Linux-Paketformate. Signierzertifikate und Apple-Zugangsdaten müssen dafür als GitHub Secrets bereitgestellt werden.
+V1.0: signierte Windows-Installer, macOS-Notarisierung, automatischer Neustart nach Update, Intel-Mac und weitere Linux-Paketformate. Signierzertifikate und Apple-Zugangsdaten müssen dafür als GitHub Secrets bereitgestellt werden.
