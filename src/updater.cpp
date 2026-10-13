@@ -15,7 +15,7 @@
 #include <wx/config.h>
 #include <wx/process.h>
 using noty::Version;
-Updater::Updater(wxWindow* owner,const wxString& configDir) : owner_(owner),configDir_(configDir),stage_(configDir+wxFILE_SEP_PATH+"updates") {
+Updater::Updater(wxWindow* owner,const wxString& configDir,bool portable) : owner_(owner),configDir_(configDir),stage_(configDir+wxFILE_SEP_PATH+"updates"),portable_(portable) {
     wxConfig config("Noty");config.Read("automaticUpdates",&automatic_,true);
     Bind(wxEVT_WEBREQUEST_STATE, &Updater::OnState, this);
 }
@@ -23,7 +23,7 @@ Updater::~Updater() {
     if(request_.IsOk() && request_.GetState()==wxWebRequest::State_Active) request_.Cancel();
     if(download_.IsOk() && download_.GetState()==wxWebRequest::State_Active) download_.Cancel();
 }
-void Updater::Error(const wxString& message){if(interactive_)wxMessageBox(message,"Noty Update",wxOK|wxICON_WARNING,owner_);}
+void Updater::Error(const wxString& message){if(interactive_||restart_)wxMessageBox(message,"Noty Update",wxOK|wxICON_WARNING,owner_);}
 void Updater::SetAutomatic(bool value){automatic_=value;wxConfig config("Noty");config.Write("automaticUpdates",value);config.Flush();}
 void Updater::Restart(){if(!ready_)return;restart_=true;if(!owner_->Close())restart_=false;}
 bool Updater::ApplyOnExit(){
@@ -46,6 +46,7 @@ bool Updater::ApplyOnExit(){
     if(wxExecute(args,wxEXEC_ASYNC|wxEXEC_HIDE_CONSOLE)<=0){Error("Update konnte nicht gestartet werden."_n);return false;}return true;
 }
 void Updater::Check(bool interactive) {
+    if(portable_){if(interactive){wxMessageBox("Portable Noty-Installationen werden nicht automatisch überschrieben. Bitte die neue Version von der Release-Seite installieren."_n,"Noty Update",wxOK,owner_);wxLaunchDefaultBrowser("https://github.com/Lyvt-Dev/Noty/releases");}return;}
     if(!interactive&&!automatic_)return;
     interactive_=interactive;
     if(ready_){if(interactive)wxMessageBox("Update ist bereit. Klicke auf Neu starten."_n,"Noty Update",wxOK,owner_);return;}

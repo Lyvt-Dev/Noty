@@ -39,7 +39,7 @@ int main(int argc,char** argv){
     if(argc!=6)return 2;pid=std::stoul(argv[1]);package=fs::u8path(argv[2]);digest=argv[3];executable=fs::u8path(argv[4]);mode=argv[5];
 #endif
     try{
-        if(!package.is_absolute()||!executable.is_absolute()||digest.size()!=64||mode!="restart"&&mode!="close")throw std::runtime_error("Invalid update arguments");
+        if(!package.is_absolute()||!executable.is_absolute()||digest.size()!=64||(mode!="restart"&&mode!="close"))throw std::runtime_error("Invalid update arguments");
         if(Hash(package)!=digest)throw std::runtime_error("Update checksum mismatch");
 #ifdef _WIN32
         HANDLE parent=OpenProcess(SYNCHRONIZE,FALSE,pid);if(parent){auto result=WaitForSingleObject(parent,120000);CloseHandle(parent);if(result!=WAIT_OBJECT_0)throw std::runtime_error("Application still running");}

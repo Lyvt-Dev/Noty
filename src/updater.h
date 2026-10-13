@@ -4,12 +4,12 @@
 #include <functional>
 class Updater : public wxEvtHandler {
 public:
-    Updater(wxWindow* owner,const wxString& configDir);
+    Updater(wxWindow* owner,const wxString& configDir,bool portable=false);
     ~Updater();
     std::function<void()> changed;
     void Check(bool interactive=true);
     bool Ready()const{return ready_;}
-    bool Automatic()const{return automatic_;}
+    bool Automatic()const{return automatic_&&!portable_;}
     void SetAutomatic(bool value);
     void Restart();
     void CancelRestart(){restart_=false;}
@@ -19,6 +19,7 @@ private:
     wxString configDir_,stage_,suffix_,assetName_;
     wxWebRequest request_,download_;
     std::string digest_;
+    bool portable_=false;
     bool ready_=false,automatic_=true,interactive_=false,restart_=false;
     void OnState(wxWebRequestEvent& event);
     void Error(const wxString& message);
