@@ -1,6 +1,6 @@
 # Noty
 
-Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.3.0.
+Nativer Quellcode-Editor in C++20 für Windows, macOS und Linux. Erste Vorschau, Version 0.4.0.
 
 ## Architektur und Oberfläche
 
@@ -55,6 +55,6 @@ Die CI bestätigt Kompilierung und Paketbau, ersetzt aber keine visuellen oder i
 
 Die umfangreiche Ausgangsspezifikation ist noch nicht vollständig implementiert. Offen sind UTF-16/ANSI und BOM-Erhaltung, asynchrones Datei-I/O, große Dateien über 64 MiB, Regex/Whole Word/Suche über alle Tabs, Explorer, Session/Crash-Recovery, Makros, Plugin-ABI, eigene Fluent-Titelleiste, benutzerdefinierte Themes, explizite UI-Automation-Prüfung, Split View und Multi-Cursor.
 
-V0.2: Encoding-Layer, Hintergrund-I/O, Sessions und Regex-Suche.
-V0.3: Explorer, Makros, Plugin-ABI und Fluent-Oberfläche.
+Nächster Schritt: Encoding-Layer, Hintergrund-I/O, Sessions und Regex-Suche.
+Danach: Explorer, Makros, Plugin-ABI und Fluent-Oberfläche.
 V1.0: signierte Windows-Installer, macOS-Notarisierung, automatischer Neustart nach Update, Intel-Mac und weitere Linux-Paketformate. Signierzertifikate und Apple-Zugangsdaten müssen dafür als GitHub Secrets bereitgestellt werden.
