@@ -34,7 +34,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Compile
-        run: cmake --build build --config Release --target Noty update_test codec_test ui_text_test search_test noty_example_plugin --parallel 3
+        run: cmake --build build --config Release --target Noty NotyUpdate update_test codec_test ui_text_test search_test noty_example_plugin --parallel 3
       - name: Test update validation
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Windows application smoke test

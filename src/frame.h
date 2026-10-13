@@ -18,7 +18,7 @@ enum { ID_FIND=wxID_HIGHEST+1,ID_NEXT,ID_PREV,ID_REPLACE,ID_THEME,ID_UPDATE,ID_G
  ID_WRAP,ID_NUMBERS,ID_SPACES,ID_INDENT,ID_BOOKMARK,ID_BOOKNEXT,ID_BOOKPREV,ID_COMMENT,ID_DUPLICATE,ID_DELETE,ID_UPPER,ID_LOWER,
  ID_TRIM,ID_SORT,ID_TABSPACE,ID_SPACETAB,ID_FOLD,ID_UNFOLD,ID_SPLIT,ID_FOLDER,ID_PALETTE,ID_RECORD,ID_PLAY,ID_REOPEN,ID_CLOSEALL,
  ID_CLOSEOTHERS,ID_ENCODING,ID_UTF8,ID_UTF8BOM,ID_UTF16LE,ID_UTF16BE,ID_ANSI,ID_LATIN1,ID_ZOOMIN,ID_ZOOMOUT,ID_ZOOMRESET,
- ID_PIN,ID_FINDALL,ID_FIND_FILES,ID_COMPLETE,ID_MACRO_SAVE,ID_MACRO_LOAD,ID_PLUGIN,ID_EXPORTHTML,ID_LANGUAGE };
+ ID_PIN,ID_FINDALL,ID_FIND_FILES,ID_COMPLETE,ID_MACRO_SAVE,ID_MACRO_LOAD,ID_PLUGIN,ID_EXPORTHTML,ID_LANGUAGE,ID_FULLSCREEN,ID_AUTOUPDATE,ID_RESTART,ID_EDITMENU,ID_VIEWMENU };
 class NotyFrame : public wxFrame {
 public:
     explicit NotyFrame(bool portable=false,bool restore=true);
@@ -32,6 +32,8 @@ private:
     wxGenericDirCtrl* explorer_=nullptr;
     wxListCtrl* results_=nullptr;
     NotyChrome* chrome_=nullptr;
+    NotySidebar* sidebar_=nullptr;
+    bool restoreAutoUpdates_=false;
     NotyStatus* status_=nullptr;
     wxTextCtrl *query_=nullptr,*replacement_=nullptr;
     wxCheckBox *regex_=nullptr,*case_=nullptr,*word_=nullptr,*all_=nullptr;

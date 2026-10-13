@@ -4,7 +4,7 @@
 #include <map>
 #include <wx/fontenum.h>
 #include "ui_text.h"
-    NotyDocument::NotyDocument(wxWindow* parent) : wxStyledTextCtrl(parent) {
+    NotyDocument::NotyDocument(wxWindow* parent) : wxStyledTextCtrl(parent,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxBORDER_NONE) {
         SetCodePage(wxSTC_CP_UTF8);
         SetMarginType(0,wxSTC_MARGIN_NUMBER); SetMarginWidth(0,0);
         SetMarginType(2,wxSTC_MARGIN_SYMBOL); SetMarginMask(2,wxSTC_MASK_FOLDERS);

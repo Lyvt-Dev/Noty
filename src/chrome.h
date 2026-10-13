@@ -5,37 +5,57 @@
 struct NotyPalette {
     wxColour title, surface, paper, text, muted, hover, stroke, accent;
     static NotyPalette Get(bool dark) {
-        if(dark)return {{31,34,40},{39,42,49},{29,31,36},{237,239,243},{162,169,180},{52,57,65},{55,59,67},{91,181,220}};
-        return {{218,232,244},{244,247,251},{253,253,254},{37,42,49},{108,116,128},{227,234,242},{228,232,237},{0,120,164}};
+        if(dark)return {{25,28,34},{25,28,34},{33,37,44},{237,240,245},{157,168,184},{43,50,61},{48,55,65},{106,159,244}};
+        return {{244,246,250},{244,246,250},{255,255,255},{34,42,56},{106,116,133},{231,236,245},{229,234,242},{55,106,205}};
     }
 };
 struct NotyTab {wxString label;bool modified=false;};
+class NotyIconButton : public wxControl {
+public:
+    bool dark=false;
+    wxString symbol;
+    std::function<void()> action;
+    NotyIconButton(wxWindow* parent,const wxString& icon,const wxString& label);
+    void Activate();
+private:
+    bool hover_=false,down_=false;
+};
 class NotyChrome : public wxPanel {
 public:
     std::function<std::vector<NotyTab>()> tabs;
     std::function<int()> selected;
-    std::function<void(int)> select, close;
-    std::function<void(int,int)> reorder;
-    std::function<void()> add;
     std::function<void(int)> menu;
-    bool dark=false;
+    std::function<void()> restart;
+    bool dark=false,ready=false;
     explicit NotyChrome(wxWindow* parent);
     bool IsInteractive(wxPoint point) const;
-    int CaptionButton(wxPoint point) const;
+    int CaptionButton(wxPoint) const{return -1;}
     void Draw(wxDC& dc);
+    void Theme(bool value);
+    void UpdateReady(bool value);
+    NotyIconButton *minimize=nullptr,*maximize=nullptr,*closeWindow=nullptr,*fullscreen=nullptr;
 private:
-    int hover_=-1,pressed_=-1,drag_=-1;
-    bool dragged_=false;
-    wxPoint down_;
-    std::vector<std::pair<int,wxRect>> tabRects_;
-    wxRect addRect_;
-    std::vector<wxRect> menuRects_;
-    void LayoutRects();
-    int TabAt(wxPoint point) const;
-    void Click(wxPoint point,bool middle=false);
+    wxStaticText* title_=nullptr;
+    NotyIconButton* restart_=nullptr;
+    std::vector<NotyIconButton*> buttons_;
 #ifdef __WXMSW__
     WXLRESULT MSWWindowProc(WXUINT,WXWPARAM,WXLPARAM) override;
 #endif
+};
+class NotySidebar : public wxPanel {
+public:
+    bool dark=false;
+    std::function<std::vector<NotyTab>()> notes;
+    std::function<int()> selected;
+    std::function<void(int)> select,close;
+    std::function<void()> add;
+    explicit NotySidebar(wxWindow* parent);
+    void Draw(wxDC& dc);
+    void Click(wxPoint p,bool middle=false);
+    void Reveal(int index);
+    int RowAt(wxPoint p) const;
+private:
+    int offset_=0,hover_=-1;
 };
 class NotyStatus : public wxPanel {
 public:

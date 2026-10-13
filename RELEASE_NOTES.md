@@ -1,13 +1,11 @@
-Noty 0.5.0 Preview
+Noty 0.6.0 Preview
 
-Neue Windows-11-Notepad-orientierte Oberfläche mit Tabs im Titelbereich, drei kompakten Menüs, Einstellungsmenü, heller Papierfläche und dezenter Statusleiste. Neues minimalistisches Noty-Logo.
+Neues eigenständiges Notizen-Layout: Sidebar statt oberer Tabs, konsistente SVG-Icons, ruhige helle/dunkle Flächen, 8-px-Eckenradius für Karten, Notizen und Windows-Fenster. Keine überlappenden Tab-Layer. Editor-Werkzeuge bleiben verfügbar.
 
-Behoben: deutsche Umlaute in Menüs/Status/Updater, Unicode-Konvertierung der Release-Daten und Unicode-Regex-Suche.
+Repariert: Windows-Minimieren, Maximieren/Wiederherstellen und Schließen sind echte anklickbare Controls. Vollbild per Button und F11, Escape verlässt Vollbild. Ungespeicherte Änderungen bleiben geschützt.
 
-Neu: Hintergrund-Dateiladen und Ordnersuche, Regex/Whole Word/Case/Tab-Suche, Ersetzen, Trefferliste, UTF-16/BOM/1252, Lesezeichen, Split View, Makro-Aufnahme und JSON-Makros, Sitzungsbackups, optionale Editor-Werkzeuge, weitere Lexer, native Plugin-ABI und Befehlspalette.
+Automatische Updates: Noty prüft GitHub nach dem Start und alle sechs Stunden, lädt neue Versionen ohne Download-Dialog und prüft SHA-256. Der Neustart-Button erscheint bei einem vorbereiteten Update. Ein nativer Helfer wartet auf das Prozessende, installiert und startet Noty erneut. Einstellungen: Updates automatisch vorbereiten. Bei normalem Schließen wird ein vorbereitetes Update ebenfalls installiert, ohne die App ungefragt wieder zu öffnen.
 
-Windows: Noty-windows-x64-setup.exe oder ZIP. macOS: Apple-Silicon-DMG. Linux: Ubuntu-24.04-x64-DEB oder TGZ.
+Windows: stilles Setup-Upgrade im bestehenden Verzeichnis; keine Deinstallation erforderlich. macOS: automatischer Austausch des App-Bundles, sofern es beschreibbar ist. Linux: DEB-Systeminstallation unter /usr/bin/Noty; das Betriebssystem fragt gegebenenfalls nach Administratorrechten. ZIP/TGZ-Nutzer sollten diese Ausgabe mit dem Installer installieren; automatischer Austausch portabler Installationen ist noch nicht unterstützt. Noty 0.5 benötigt einmal das bisherige Update/Setup, danach gilt der neue automatische Ablauf.
 
-Vorhandene Installer-Versionen können aktualisiert werden; keine vorherige Deinstallation erforderlich. Vor dem Update Dokumente speichern. Der neue Windows-Updater schließt Noty nach Zustimmung vor der Installation. Der alte 0.4-Client benötigt manuelles Schließen. Portable ZIP-Installationen haben noch keinen automatischen Dateiaustausch.
-
-Diese Vorschau enthält noch nicht ALLE Notepad++-Features. Grenzen und fehlende Funktionen stehen im README. Installer sind unsigniert; macOS ist nicht notarisiert. Eigenes Plugin-System, keine Kompatibilität mit Notepad++-DLLs.
+Windows-x64-Setup/ZIP, macOS-Apple-Silicon-DMG, Ubuntu-24.04-x64-DEB/TGZ. Installer unsigniert, macOS nicht notarisiert. Kein vollständiger Notepad++-Funktionsumfang; siehe README.

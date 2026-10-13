@@ -1,10 +1,20 @@
-# Noty
+# Noty 0.6
 
-Native C++20 text and source editor for Windows, macOS and Linux. Version 0.5.0 is a preview, not a claim of complete Notepad++ parity.
+Eigenständiger nativer Notizeneditor: linke Notizen-Sidebar, SVG-Icon-Leiste, 8-px-Eckenradius, helle/dunkle Editorflächen. Keine oberen Dokument-Tabs. Vollbild mit F11, zurück mit Escape.
+
+Updates werden standardmäßig beim Start und alle sechs Stunden automatisch von GitHub geladen und anhand SHA-256 geprüft. Sobald das Update bereit ist, erscheint der Neustart-Button. Der native Helfer wartet auf das Ende der App und aktualisiert sie; ein abgebrochenes Schließen wegen ungespeicherter Notizen verhindert die Installation. Bei normalem Beenden wird ein vorbereitetes Update installiert, ohne Neustart. Automatische Vorbereitung lässt sich im Einstellungsmenü ausschalten.
+
+Windows verwendet ein stilles Setup im bestehenden Verzeichnis. macOS ersetzt ein beschreibbares Noty.app-Bundle. Linux benötigt eine DEB-Systeminstallation unter /usr/bin/Noty und gegebenenfalls die Systemfreigabe über pkexec. Portable ZIP/TGZ-Installationen sind für automatische Updates noch nicht unterstützt. Version 0.5 benötigt einmal das bisherige Setup; ab 0.6 gilt der neue Ablauf. macOS/Linux-Helfer werden gebaut, ihre reale Update-Installation ist noch nicht auf diesen Betriebssystemen nachgewiesen.
+
+## Vorhandene Editor-Funktionen und Grenzen
+
+### Noty
+
+Native C++20 text and source editor for Windows, macOS and Linux. Version 0.6.0 is a preview, not a claim of complete Notepad++ parity.
 
 ## Oberfläche
 
-Die Standardansicht folgt dem Windows-11-Notepad-Layout: Dokument-Tabs im Titelbereich, drei kompakte Menüs, Einstellungsmenü rechts, helle Papierfläche, Monospace-Schrift und schmale Statusleiste. Erweiterte Werkzeuge sind optional. Windows behält System-Resizing, Titelbereich-Dragging, Doppelklick-Maximieren und `HTMAXBUTTON` für Snap Layouts. Rounded Corners und System-Backdrop werden über DWM angefordert; nicht unterstützte Systeme verwenden solide Farben. Die eigene GDI-Tableiste ist deckend.
+Die Standardansicht verwendet eine Notizen-Sidebar und eine kompakte Icon-Werkzeugleiste. Karten und Fenster erhalten 8-px-Ecken. Die Fenstercontrols sind anklickbare native Controls; F11 schaltet Vollbild um. Editor-Befehle sind über das Befehlsmenü, Einstellungen und Tastenkürzel erreichbar. Die Windows-Titelfläche bleibt verschiebbar; Resize funktioniert am Fensterrand. Snap-Layouts per Hover über den eigenen Maximieren-Button sind noch nicht implementiert.
 
 Alle deutschen Oberflächentexte verwenden ausdrückliche UTF-8-Konvertierung. Windows-ANSI-Codepages bestimmen ihre Darstellung nicht mehr. Die Regex-Suche arbeitet mit Unicode über wxRegEx/PCRE2; ein Punkt kann auch ein einzelnes mehrbyteiges Zeichen wie `ß` oder ein Emoji treffen.
 
@@ -12,22 +22,22 @@ Alle deutschen Oberflächentexte verwenden ausdrückliche UTF-8-Konvertierung. W
 
 | Bereich | Vorhanden | Grenze |
 |---|---|---|
-| Dokumente | Mehrere Tabs, Drag-Reihenfolge, Schließen, andere/alle schließen, geschlossenen Tab wieder öffnen | Keine abgetrennten Fenster/Tab-Pinning |
+| Dokumente | Mehrere Notizen in der Sidebar, Schließen, andere/alle schließen, geschlossenen Tab wieder öffnen | Keine abgetrennten Fenster/Tab-Pinning |
 | Dateien | Hintergrund-Laden, Speichern, Speichern unter, alle speichern, Fehlerschutz | Maximal 128 MiB; Speichern läuft noch im UI-Thread |
 | Encodings | UTF-8, UTF-8 BOM, UTF-16 LE/BE mit BOM, Windows-1252, ISO-8859-1 | Kein vollständiger Codepage-Katalog; nicht darstellbare Zeichen lösen einen Fehler aus |
 | Zeilenenden | LF, CRLF und CR erkennen/konvertieren | Reopen-/Session-EOL-Einstellungen noch nicht vollständig unabhängig konfigurierbar |
 | Bearbeiten | Undo/Redo, Zwischenablage, Zeile duplizieren/löschen, Groß-/Kleinschreibung, Sortieren, Trim, Tabs/Spaces | Kein vollständiger Satz aller Notepad++-Zeilenoperationen |
-| Suchen | Literal/Regex, Case, Whole Word, vorwärts/rückwärts, alle Tabs, Ersetzen, alle ersetzen, Trefferliste | Keine identische Notepad++-Suchdialog-/Regex-Ersetzungssemantik für jede Spezialsyntax |
+| Suchen | Literal/Regex, Case, Whole Word, vorwärts/rückwärts, alle Notizen, Ersetzen, alle ersetzen, Trefferliste | Keine identische Notepad++-Suchdialog-/Regex-Ersetzungssemantik für jede Spezialsyntax |
 | Ordnersuche | Hintergrund-Suche mit Trefferliste und Dateisprung | Zeilenbasiert, 16 MiB je Datei, höchstens 10.000 Treffer; `.git`, `build`, `node_modules` ausgeschlossen |
 | Syntax | Automatische Scintilla-Lexer für C/C++, Python, JSON, HTML/XML/PHP, CSS, JS/TS, Markdown, Batch, Rust, SQL, YAML, Shell, Lua, PowerShell und weitere; manuelle Sprachwahl | Nicht alle Sprachstile/Keywords gleich detailliert; keine UDL-Import-Kompatibilität |
 | Navigation | Gehe zu Zeile, Lesezeichen, Klammermarkierung, Folding, Einrückung | Keine Function List oder Document Map |
 | Ansichten | Optionale Zeilennummern, Whitespace, Guides, Wrap, Zoom, Schriftwahl, Light/Dark, Projektordner, zwei Ansichten eines gemeinsamen Puffers | Einige Menüaktionen beziehen sich auf die Hauptansicht |
 | Mehrfachauswahl | Scintilla Multiple Selection, zusätzliche Eingabe, Rechteckauswahl | Kein Notepad++ Column Editor mit Nummernreihen |
 | Makros | Text-Insert/Delete aufnehmen, gruppiert wiedergeben, JSON laden/speichern | Keine vollständige Aufzeichnung von Navigation, Menü- und Suchaktionen |
-| Sitzung | Offene Tabs, Cursor, View-Einstellungen; regelmäßige JSON-Backups geänderter Puffer | Backup nur bis 8 MiB je Puffer; keine vollständige Disaster-Recovery-Garantie |
+| Sitzung | Offene Notizen, Cursor, View-Einstellungen; regelmäßige JSON-Backups geänderter Puffer | Backup nur bis 8 MiB je Puffer; keine vollständige Disaster-Recovery-Garantie |
 | Plugins | Explizites Laden nativer Noty-ABI-v1-Plugins; Beispiel-Plugin | Notepad++-DLLs verwenden eine andere ABI und sind nicht kompatibel |
-| Updates | Release-Prüfung, Plattform-Installer, HTTPS, SHA-256 vor dem Öffnen der Installation | Zustimmung erforderlich; macOS/Linux verwenden die Systeminstallation |
-| Accessibility/DPI | Native Editor-Eingabe, Tastenkürzel, PerMonitorV2-Manifest | Eigene Tabs haben noch keine vollständige UIA-Struktur; breite Screenreader-/Monitorprüfungen stehen aus |
+| Updates | Automatische Release-Prüfung und Downloads, HTTPS, SHA-256, nativer Installations-/Neustart-Helfer | Plattformrechte können nötig sein; Windows-Upgrades im CI geprüft, reale macOS/Linux-Upgrades stehen aus |
+| Accessibility/DPI | Native Editor-Eingabe, Tastenkürzel, PerMonitorV2-Manifest | Eigene Sidebar/Icon-Controls haben noch keine vollständige UIA-Struktur; breite Screenreader-/Monitorprüfungen stehen aus |
 
 Weitere offene Notepad++-Bereiche: Shortcut Mapper, vollständiger Style Configurator, User Defined Languages, Plugin Admin/Katalog, Run-Kommandos, Drucken/Print Preview, File Monitoring/tail, vollständiger Spalteneditor, Function List, Document Map, vollständige Sprach-/Codepage-Abdeckung, Sucheinstellungen und alle seltenen Menü-/Tastenkombinationen. Referenz für die weitere Paritätsarbeit: [offizielles Notepad++-Handbuch](https://npp-user-manual.org/docs/user-interface/).
 
@@ -35,7 +45,7 @@ Weitere offene Notepad++-Bereiche: Shortcut Mapper, vollständiger Style Configu
 
 Hilfe bzw. Einstellungsmenü → Nach Updates suchen. Der bisherige Updater konvertierte JSON-Daten über die lokale ANSI-Codepage. Die Release-Pipeline hält die sichtbaren Release-Texte für diesen alten Client ASCII-kompatibel und korrigiert die Metadaten von v0.4.0. Installer, Tags und deren Prüfsummen werden dabei nicht verändert.
 
-Ein Installer-Update aktualisiert die vorhandene Anwendung; eine vorherige Deinstallation ist nicht nötig. Die neue Windows-Version bittet vor dem Start der Installation um Schließen und prüft dabei ungespeicherte Dokumente. Der alte v0.4-Client muss wie in seinem Dialog beschrieben manuell geschlossen werden. Portable ZIP-Versionen haben noch keinen verifizierten Austausch der laufenden ZIP-Installation.
+Ein Installer-Update aktualisiert die vorhandene Anwendung; eine vorherige Deinstallation ist nicht nötig. Version 0.6 installiert vorbereitete Updates nach dem Schließen und prüft dabei ungespeicherte Dokumente. Der alte v0.4-Client muss wie in seinem Dialog beschrieben manuell geschlossen werden. Portable ZIP-Versionen haben noch keinen verifizierten Austausch der laufenden ZIP-Installation.
 
 Dateien werden nur aus `Lyvt-Dev/Noty` geladen; ein exakter Assetname, eine feste GitHub-URL und ein SHA-256-Digest werden geprüft. SHA-256 ersetzt keine Codesignatur. Windows-Installer sind noch unsigniert, macOS-Pakete nicht notarisiert. Apple-Zugangsdaten und Signierzertifikate sind nicht enthalten.
 

@@ -12,6 +12,8 @@
 #include <wx/dirdlg.h>
 #include <wx/dcclient.h>
 #include <wx/dcmemory.h>
+#include <wx/dcbuffer.h>
+#include <wx/graphics.h>
 #include <wx/mstream.h>
 #include <wx/config.h>
 #include <wx/dir.h>
@@ -25,6 +27,7 @@
 #ifdef __WXMSW__
 #include <windows.h>
 #include <windowsx.h>
+#undef IsMaximized
 #include <dwmapi.h>
 #endif
 
@@ -58,8 +61,8 @@ void AtomicJson(const std::filesystem::path& path,const std::string& bytes){
 }
 }
 NotyDocument* NotyFrame::Current()const{return documents_.empty()?nullptr:documents_[std::clamp(current_,0,static_cast<int>(documents_.size())-1)];}
-NotyFrame::NotyFrame(bool portable,bool restore):wxFrame(nullptr,wxID_ANY,"Noty",wxDefaultPosition,wxSize(1040,700)),timer_(this){
-    SetMinSize(FromDIP(wxSize(600,360)));SetFont(wxFontInfo(10).FaceName("Segoe UI"));
+NotyFrame::NotyFrame(bool portable,bool restore):wxFrame(nullptr,wxID_ANY,"Noty",wxDefaultPosition,wxSize(1120,760)),timer_(this){
+    SetMinSize(FromDIP(wxSize(720,420)));SetFont(wxFontInfo(10).FaceName("Segoe UI"));
     configDir_=portable?wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath():wxStandardPaths::Get().GetUserDataDir();
     wxFileName::Mkdir(configDir_,wxS_DIR_DEFAULT,wxPATH_MKDIR_FULL);
     wxMemoryInputStream logo(noty_logo,sizeof(noty_logo));wxIcon icon;icon.CopyFromBitmap(wxBitmap(wxImage(logo,wxBITMAP_TYPE_PNG)));SetIcon(icon);
@@ -71,42 +74,48 @@ NotyFrame::NotyFrame(bool portable,bool restore):wxFrame(nullptr,wxID_ANY,"Noty"
     auto button=[&](wxString name,std::function<void()> action){auto* b=new wxButton(find_,wxID_ANY,name,wxDefaultPosition,wxDefaultSize,wxBU_EXACTFIT);fields->Add(b,0,wxRIGHT,FromDIP(4));b->Bind(wxEVT_BUTTON,[action](wxCommandEvent&){action();});};
     button("Zurück"_n,[this]{Find(true);});button("Weiter"_n,[this]{Find();});button("Ersetzen"_n,[this]{Find(false,true);});button("Alle ersetzen"_n,[this]{Find(false,true,true);});button("×"_n,[this]{find_->Hide();Layout();if(Current())Current()->SetFocus();});
     searchLayout->Add(fields,0,wxEXPAND|wxALL,FromDIP(10));auto* options=new wxBoxSizer(wxHORIZONTAL);
-    regex_=new wxCheckBox(find_,wxID_ANY,"Regex"_n);case_=new wxCheckBox(find_,wxID_ANY,"Groß-/Kleinschreibung"_n);word_=new wxCheckBox(find_,wxID_ANY,"Ganzes Wort"_n);all_=new wxCheckBox(find_,wxID_ANY,"Alle Tabs"_n);
+    regex_=new wxCheckBox(find_,wxID_ANY,"Regex"_n);case_=new wxCheckBox(find_,wxID_ANY,"Groß-/Kleinschreibung"_n);word_=new wxCheckBox(find_,wxID_ANY,"Ganzes Wort"_n);all_=new wxCheckBox(find_,wxID_ANY,"Alle Notizen"_n);
     for(auto* box:{regex_,case_,word_,all_})options->Add(box,0,wxRIGHT,FromDIP(18));findInfo_=new wxStaticText(find_,wxID_ANY,wxEmptyString);options->Add(findInfo_,1);searchLayout->Add(options,0,wxEXPAND|wxLEFT|wxRIGHT|wxBOTTOM,FromDIP(12));find_->SetSizer(searchLayout);find_->Hide();vertical->Add(find_,0,wxEXPAND);
     query_->Bind(wxEVT_TEXT_ENTER,[this](wxCommandEvent&){Find();});
-    auto* horizontal=new wxBoxSizer(wxHORIZONTAL);explorer_=new wxGenericDirCtrl(this,wxID_ANY,wxEmptyString,wxDefaultPosition,FromDIP(wxSize(210,400)),static_cast<long>(wxDIRCTRL_SHOW_FILTERS)|wxBORDER_NONE);explorer_->Hide();horizontal->Add(explorer_,0,wxEXPAND);
+    auto* horizontal=new wxBoxSizer(wxHORIZONTAL);sidebar_=new NotySidebar(this);horizontal->Add(sidebar_,0,wxEXPAND|wxLEFT,FromDIP(8));explorer_=new wxGenericDirCtrl(this,wxID_ANY,wxEmptyString,wxDefaultPosition,FromDIP(wxSize(210,400)),static_cast<long>(wxDIRCTRL_SHOW_FILTERS)|wxBORDER_NONE);explorer_->Hide();horizontal->Add(explorer_,0,wxEXPAND);
     explorer_->Bind(wxEVT_DIRCTRL_FILEACTIVATED,[this](wxTreeEvent&){auto path=explorer_->GetFilePath();if(!path.empty())Open(path);});
     split_=new wxSplitterWindow(this,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxSP_LIVE_UPDATE|wxBORDER_NONE);split_->SetMinimumPaneSize(FromDIP(160));
-    host_=new wxPanel(split_,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxBORDER_NONE);host_->SetSizer(new wxBoxSizer(wxVERTICAL));split_->Initialize(host_);horizontal->Add(split_,1,wxEXPAND);vertical->Add(horizontal,1,wxEXPAND);
+    host_=new wxPanel(split_,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxBORDER_NONE);host_->SetSizer(new wxBoxSizer(wxVERTICAL));host_->SetBackgroundStyle(wxBG_STYLE_PAINT);host_->Bind(wxEVT_PAINT,[this](wxPaintEvent&){wxAutoBufferedPaintDC dc(host_);auto p=NotyPalette::Get(dark_);dc.SetBackground(wxBrush(p.surface));dc.Clear();std::unique_ptr<wxGraphicsContext> g(wxGraphicsContext::CreateFromUnknownDC(dc));if(g){g->SetPen(wxPen(p.stroke));g->SetBrush(wxBrush(p.paper));g->DrawRoundedRectangle(0.5,0.5,host_->GetClientSize().x-1,host_->GetClientSize().y-1,FromDIP(8));}});split_->Initialize(host_);horizontal->Add(split_,1,wxEXPAND|wxLEFT|wxRIGHT,FromDIP(12));vertical->Add(horizontal,1,wxEXPAND);
     results_=new wxListCtrl(this,wxID_ANY,wxDefaultPosition,FromDIP(wxSize(-1,160)),wxLC_REPORT|wxLC_SINGLE_SEL|wxBORDER_NONE);results_->InsertColumn(0,"Datei"_n,wxLIST_FORMAT_LEFT,FromDIP(250));results_->InsertColumn(1,"Zeile"_n,wxLIST_FORMAT_LEFT,FromDIP(60));results_->InsertColumn(2,"Treffer"_n,wxLIST_FORMAT_LEFT,FromDIP(600));results_->Hide();vertical->Add(results_,0,wxEXPAND);
     results_->Bind(wxEVT_LIST_ITEM_ACTIVATED,[this](wxListEvent& e){auto path=results_->GetItemText(e.GetIndex(),0);if(path=="Unbenannt"_n)return;long line=1;results_->GetItemText(e.GetIndex(),1).ToLong(&line);Open(path,static_cast<int>(line));});
     status_=new NotyStatus(this);vertical->Add(status_,0,wxEXPAND);SetSizer(vertical);
-    chrome_->tabs=[this]{std::vector<NotyTab> out;for(auto* d:documents_)out.push_back({d->path.empty()?"Unbenannt"_n:wxFileName(d->path).GetFullName(),d->Modified()});return out;};chrome_->selected=[this]{return current_;};chrome_->select=[this](int i){Select(i);};chrome_->close=[this](int i){CloseTab(i);};chrome_->add=[this]{New();};chrome_->menu=[this](int i){Popup(i);};
-    chrome_->reorder=[this](int from,int to){auto* d=documents_[from];documents_.erase(documents_.begin()+from);documents_.insert(documents_.begin()+to,d);Select(to);};
+    sidebar_->notes=[this]{std::vector<NotyTab> out;for(auto* d:documents_)out.push_back({d->path.empty()?"Unbenannt"_n:wxFileName(d->path).GetFullName(),d->Modified()});return out;};sidebar_->selected=[this]{return current_;};sidebar_->select=[this](int i){Select(i);};sidebar_->close=[this](int i){CloseTab(i);};sidebar_->add=[this]{New();};chrome_->menu=[this](int i){if(i==3)Command(ID_FIND);else Popup(i);};chrome_->restart=[this]{Command(ID_RESTART);};
     status_->click=[this](int part){if(part==2)Command(ID_ENCODING);else if(part==1){wxMenu menu;menu.Append(ID_CRLF,"Windows (CRLF)");menu.Append(ID_LF,"Unix (LF)");menu.Append(ID_CR,"Mac (CR)");PopupMenu(&menu);}else Command(ID_ZOOMRESET);};
-    Menus();updater_=std::make_unique<Updater>(this);Bind(wxEVT_MENU,[this](wxCommandEvent& e){Command(e.GetId());});
+    Menus();updater_=std::make_unique<Updater>(this,configDir_);updater_->changed=[this]{chrome_->UpdateReady(updater_->Ready());};Bind(wxEVT_MENU,[this](wxCommandEvent& e){Command(e.GetId());});
     std::vector<wxAcceleratorEntry> keys;auto key=[&](int modifiers,int code,int command){keys.emplace_back(modifiers,code,command);};
     for(auto [code,command]:std::vector<std::pair<int,int>>{{'N',wxID_NEW},{'O',wxID_OPEN},{'S',wxID_SAVE},{'W',wxID_CLOSE},{'F',ID_FIND},{'H',ID_REPLACE},{'G',ID_GOTO},{'Z',wxID_UNDO},{'Y',wxID_REDO},{'D',ID_DUPLICATE}})key(wxACCEL_CTRL,code,command);
-    key(wxACCEL_CTRL|wxACCEL_SHIFT,'S',wxID_SAVEAS);key(wxACCEL_CTRL|wxACCEL_SHIFT,'P',ID_PALETTE);key(wxACCEL_CTRL|wxACCEL_SHIFT,'T',ID_REOPEN);key(wxACCEL_NORMAL,WXK_F3,ID_NEXT);key(wxACCEL_SHIFT,WXK_F3,ID_PREV);key(wxACCEL_CTRL,WXK_F2,ID_BOOKMARK);key(wxACCEL_NORMAL,WXK_F2,ID_BOOKNEXT);key(wxACCEL_CTRL,'Q',ID_COMMENT);key(wxACCEL_CTRL,WXK_SPACE,ID_COMPLETE);key(wxACCEL_CTRL,WXK_ADD,ID_ZOOMIN);key(wxACCEL_CTRL,WXK_SUBTRACT,ID_ZOOMOUT);SetAcceleratorTable(wxAcceleratorTable(static_cast<int>(keys.size()),keys.data()));
-    Bind(wxEVT_CHAR_HOOK,[this](wxKeyEvent& e){if(e.ControlDown()&&e.GetKeyCode()==WXK_TAB){if(!documents_.empty())Select((current_+(e.ShiftDown()?static_cast<int>(documents_.size())-1:1))%documents_.size());return;}if(e.GetKeyCode()==WXK_ESCAPE&&find_->IsShown()){find_->Hide();Layout();if(Current())Current()->SetFocus();return;}e.Skip();});
-    Bind(wxEVT_TIMER,[this](wxTimerEvent&){FinishOpening();if(++ticks_%10==0)Persist();if(search_.valid()&&search_.wait_for(std::chrono::seconds(0))==std::future_status::ready){try{for(auto& [path,line,text]:search_.get())Result(Wx(path),line,Wx(text));findInfo_->SetLabel("Suche abgeschlossen"_n);}catch(...){findInfo_->SetLabel("Dateisuche fehlgeschlagen"_n);}}});timer_.Start(1000);
-    Bind(wxEVT_CLOSE_WINDOW,[this](wxCloseEvent& e){for(auto* d:documents_)if(!Confirm(d)){for(auto* pending:documents_)pending->discardOnClose=false;if(e.CanVeto())e.Veto();return;}closing_=true;timer_.Stop();if(persist_.valid()){persist_.wait();try{persist_.get();}catch(...){}}Persist();Destroy();});
+    key(wxACCEL_CTRL|wxACCEL_SHIFT,'S',wxID_SAVEAS);key(wxACCEL_CTRL|wxACCEL_SHIFT,'P',ID_PALETTE);key(wxACCEL_CTRL|wxACCEL_SHIFT,'T',ID_REOPEN);key(wxACCEL_NORMAL,WXK_F3,ID_NEXT);key(wxACCEL_SHIFT,WXK_F3,ID_PREV);key(wxACCEL_CTRL,WXK_F2,ID_BOOKMARK);key(wxACCEL_NORMAL,WXK_F2,ID_BOOKNEXT);key(wxACCEL_CTRL,'Q',ID_COMMENT);key(wxACCEL_CTRL,WXK_SPACE,ID_COMPLETE);key(wxACCEL_CTRL,WXK_ADD,ID_ZOOMIN);key(wxACCEL_CTRL,WXK_SUBTRACT,ID_ZOOMOUT);key(wxACCEL_NORMAL,WXK_F11,ID_FULLSCREEN);SetAcceleratorTable(wxAcceleratorTable(static_cast<int>(keys.size()),keys.data()));
+    Bind(wxEVT_CHAR_HOOK,[this](wxKeyEvent& e){if(e.ControlDown()&&e.GetKeyCode()==WXK_TAB){if(!documents_.empty())Select((current_+(e.ShiftDown()?static_cast<int>(documents_.size())-1:1))%documents_.size());return;}if(e.GetKeyCode()==WXK_ESCAPE&&IsFullScreen()){ShowFullScreen(false);return;}if(e.GetKeyCode()==WXK_ESCAPE&&find_->IsShown()){find_->Hide();Layout();if(Current())Current()->SetFocus();return;}e.Skip();});
+    Bind(wxEVT_TIMER,[this](wxTimerEvent&){FinishOpening();if(++ticks_%10==0)Persist();if(restoreAutoUpdates_&&(ticks_==5||ticks_%21600==0))updater_->Check(false);if(search_.valid()&&search_.wait_for(std::chrono::seconds(0))==std::future_status::ready){try{for(auto& [path,line,text]:search_.get())Result(Wx(path),line,Wx(text));findInfo_->SetLabel("Suche abgeschlossen"_n);}catch(...){findInfo_->SetLabel("Dateisuche fehlgeschlagen"_n);}}});timer_.Start(1000);
+    Bind(wxEVT_CLOSE_WINDOW,[this](wxCloseEvent& e){for(auto* d:documents_)if(!Confirm(d)){for(auto* pending:documents_)pending->discardOnClose=false;updater_->CancelRestart();if(e.CanVeto())e.Veto();return;}closing_=true;timer_.Stop();if(persist_.valid()){persist_.wait();try{persist_.get();}catch(...){}}Persist();if(persist_.valid()){persist_.wait();try{persist_.get();}catch(...){}}updater_->ApplyOnExit();Destroy();});
+    restoreAutoUpdates_=restore;
+    Bind(wxEVT_SIZE,[this](wxSizeEvent& e){
+#ifdef __WXMSW__
+        HWND w=reinterpret_cast<HWND>(GetHandle());if(IsMaximized()||IsFullScreen())SetWindowRgn(w,nullptr,TRUE);else{RECT r;GetWindowRect(w,&r);HRGN region=CreateRoundRectRgn(0,0,r.right-r.left+1,r.bottom-r.top+1,FromDIP(16),FromDIP(16));if(!SetWindowRgn(w,region,TRUE))DeleteObject(region);}
+#endif
+        if(chrome_->maximize){chrome_->maximize->symbol=IsMaximized()?"restore":"maximize";chrome_->maximize->Refresh();}e.Skip();});
     if(restore)Restore();if(documents_.empty())New();ApplyTheme();Centre();
 #ifdef __WXMSW__
-    SetWindowPos(reinterpret_cast<HWND>(GetHandle()),nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED);
+    HWND shell=reinterpret_cast<HWND>(GetHandle());SetWindowLongPtrW(shell,GWL_STYLE,GetWindowLongPtrW(shell,GWL_STYLE)&~WS_CAPTION);
+    SetWindowPos(shell,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED);
 #endif
 }
 void NotyFrame::New(){
     auto* d=new NotyDocument(host_);d->Hide();documents_.push_back(d);
-    d->Bind(wxEVT_STC_SAVEPOINTLEFT,[this](wxStyledTextEvent&){chrome_->Refresh();});d->Bind(wxEVT_STC_SAVEPOINTREACHED,[this](wxStyledTextEvent&){chrome_->Refresh();});
+    d->Bind(wxEVT_STC_SAVEPOINTLEFT,[this](wxStyledTextEvent&){sidebar_->Refresh();chrome_->Refresh();});d->Bind(wxEVT_STC_SAVEPOINTREACHED,[this](wxStyledTextEvent&){sidebar_->Refresh();chrome_->Refresh();});
     d->Bind(wxEVT_STC_UPDATEUI,[this,d](wxStyledTextEvent&){if(d!=Current())return;UpdateStatus();int pos=d->GetCurrentPos();int brace=pos>0?pos-1:0;int c=d->GetCharAt(brace);if(c=='('||c==')'||c=='['||c==']'||c=='{'||c=='}'){int other=d->BraceMatch(brace);if(other>=0)d->BraceHighlight(brace,other);else d->BraceBadLight(brace);}else d->BraceHighlight(-1,-1);});
     d->Bind(wxEVT_STC_MODIFIED,[this,d](wxStyledTextEvent& e){
         if(e.GetModificationType()&(wxSTC_MOD_INSERTTEXT|wxSTC_MOD_DELETETEXT)){try{auto count=static_cast<std::int64_t>(noty::Codepoints(Utf8(e.GetText())).size());d->characters+=((e.GetModificationType()&wxSTC_MOD_INSERTTEXT)?count:-count);d->characters=std::max<std::int64_t>(0,d->characters);}catch(...){}}
         if(recording_&&!replaying_&&d==Current()&&(e.GetModificationType()&(wxSTC_MOD_INSERTTEXT|wxSTC_MOD_DELETETEXT)))macro_.push_back({(e.GetModificationType()&wxSTC_MOD_INSERTTEXT)!=0,e.GetPosition()-macroBase_,e.GetLength(),Utf8(e.GetText())});
     });d->Theme(dark_);d->Language();Select(static_cast<int>(documents_.size())-1);
 }
-void NotyFrame::Select(int i){if(i<0||i>=static_cast<int>(documents_.size()))return;for(auto* d:documents_){host_->GetSizer()->Detach(d);d->Hide();}current_=i;auto* d=Current();host_->GetSizer()->Add(d,1,wxEXPAND|wxTOP|wxBOTTOM,FromDIP(10));d->Show();host_->Layout();d->SetFocus();if(second_)second_->SetDocPointer(d->GetDocPointer());chrome_->Refresh();UpdateStatus();}
-void NotyFrame::ApplyTheme(){auto palette=NotyPalette::Get(dark_);SetBackgroundColour(palette.paper);host_->SetBackgroundColour(palette.paper);find_->SetBackgroundColour(palette.surface);for(auto* d:documents_)d->Theme(dark_);if(second_)second_->Theme(dark_);chrome_->dark=dark_;status_->dark=dark_;query_->SetBackgroundColour(palette.paper);query_->SetForegroundColour(palette.text);replacement_->SetBackgroundColour(palette.paper);replacement_->SetForegroundColour(palette.text);for(auto* box:{regex_,case_,word_,all_})box->SetForegroundColour(palette.text);findInfo_->SetForegroundColour(palette.muted);results_->SetBackgroundColour(palette.paper);results_->SetForegroundColour(palette.text);
+void NotyFrame::Select(int i){if(i<0||i>=static_cast<int>(documents_.size()))return;for(auto* d:documents_){host_->GetSizer()->Detach(d);d->Hide();}current_=i;sidebar_->Reveal(i);auto* d=Current();host_->GetSizer()->Add(d,1,wxEXPAND|wxALL,FromDIP(18));d->Show();host_->Layout();d->SetFocus();if(second_)second_->SetDocPointer(d->GetDocPointer());sidebar_->Refresh();chrome_->Refresh();UpdateStatus();}
+void NotyFrame::ApplyTheme(){auto palette=NotyPalette::Get(dark_);SetBackgroundColour(palette.paper);host_->SetBackgroundColour(palette.surface);host_->SetBackgroundStyle(wxBG_STYLE_PAINT);sidebar_->dark=dark_;sidebar_->SetBackgroundColour(palette.surface);sidebar_->Refresh();find_->SetBackgroundColour(palette.surface);for(auto* d:documents_)d->Theme(dark_);if(second_)second_->Theme(dark_);chrome_->Theme(dark_);status_->dark=dark_;query_->SetBackgroundColour(palette.paper);query_->SetForegroundColour(palette.text);replacement_->SetBackgroundColour(palette.paper);replacement_->SetForegroundColour(palette.text);for(auto* box:{regex_,case_,word_,all_})box->SetForegroundColour(palette.text);findInfo_->SetForegroundColour(palette.muted);results_->SetBackgroundColour(palette.paper);results_->SetForegroundColour(palette.text);
 #ifdef __WXMSW__
     HWND window=reinterpret_cast<HWND>(GetHandle());BOOL dark=dark_;int corners=2,material=2;DwmSetWindowAttribute(window,20,&dark,sizeof(dark));DwmSetWindowAttribute(window,33,&corners,sizeof(corners));DwmSetWindowAttribute(window,38,&material,sizeof(material));
 #endif
@@ -125,7 +134,7 @@ void NotyFrame::FinishOpening(){
         opening_.erase(opening_.begin()+i);
     }
 }
-bool NotyFrame::Save(NotyDocument* d,bool saveAs){if(!d)return false;wxString path=d->path;if(path.empty()||saveAs){wxFileDialog dialog(this,"Speichern unter"_n,wxEmptyString,path,"Alle Dateien (*.*)|*.*",wxFD_SAVE|wxFD_OVERWRITE_PROMPT);if(dialog.ShowModal()!=wxID_OK)return false;path=dialog.GetPath();}try{auto bytes=noty::Encode(Utf8(d->GetText()),d->encoding);wxString temp=wxFileName::CreateTempFileName(path+".noty-");if(temp.empty())throw std::runtime_error("Temp");wxFile file(temp,wxFile::write);bool ok=file.IsOpened()&&file.Write(bytes.data(),bytes.size())==bytes.size();if(file.IsOpened())ok=file.Close()&&ok;if(ok)ok=wxRenameFile(temp,path,true);if(!ok){wxRemoveFile(temp);throw std::runtime_error("Write");}d->path=path;d->SetSavePoint();d->formatDirty=false;d->Language();chrome_->Refresh();UpdateStatus();return true;}catch(...){wxMessageBox("Speichern fehlgeschlagen. Prüfe Schreibrechte und das gewählte Encoding. Nicht darstellbare Zeichen werden niemals still ersetzt."_n,"Noty",wxOK|wxICON_ERROR,this);return false;}}
+bool NotyFrame::Save(NotyDocument* d,bool saveAs){if(!d)return false;wxString path=d->path;if(path.empty()||saveAs){wxFileDialog dialog(this,"Speichern unter"_n,wxEmptyString,path,"Alle Dateien (*.*)|*.*",wxFD_SAVE|wxFD_OVERWRITE_PROMPT);if(dialog.ShowModal()!=wxID_OK)return false;path=dialog.GetPath();}try{auto bytes=noty::Encode(Utf8(d->GetText()),d->encoding);wxString temp=wxFileName::CreateTempFileName(path+".noty-");if(temp.empty())throw std::runtime_error("Temp");wxFile file(temp,wxFile::write);bool ok=file.IsOpened()&&file.Write(bytes.data(),bytes.size())==bytes.size();if(file.IsOpened())ok=file.Close()&&ok;if(ok)ok=wxRenameFile(temp,path,true);if(!ok){wxRemoveFile(temp);throw std::runtime_error("Write");}d->path=path;d->SetSavePoint();d->formatDirty=false;d->Language();sidebar_->Refresh();chrome_->Refresh();UpdateStatus();return true;}catch(...){wxMessageBox("Speichern fehlgeschlagen. Prüfe Schreibrechte und das gewählte Encoding. Nicht darstellbare Zeichen werden niemals still ersetzt."_n,"Noty",wxOK|wxICON_ERROR,this);return false;}}
 bool NotyFrame::Confirm(NotyDocument* d){if(!d||!d->Modified())return true;int result=confirmChoice_?confirmChoice_(d):wxMessageBox("Änderungen in „"_n+(d->path.empty()?"Unbenannt"_n:wxFileName(d->path).GetFullName())+"“ speichern?"_n,"Noty",wxYES_NO|wxCANCEL|wxICON_QUESTION,this);if(result==wxYES)return Save(d);if(result==wxNO){d->discardOnClose=true;return true;}return false;}
 bool NotyFrame::CloseTab(int i){if(i<0||i>=static_cast<int>(documents_.size())||!Confirm(documents_[i]))return false;auto* d=documents_[i];if(!d->path.empty())recentlyClosed_.push_back(d->path);host_->GetSizer()->Detach(d);documents_.erase(documents_.begin()+i);d->Destroy();if(documents_.empty())New();else Select(std::min(i,static_cast<int>(documents_.size())-1));return true;}
 
@@ -133,17 +142,17 @@ void NotyFrame::Menus(){
     menus_.clear();for(int i=0;i<8;++i)menus_.push_back(std::make_unique<wxMenu>());
     auto item=[this](int menu,int id,wxString name,bool check=false){if(check)menus_[menu]->AppendCheckItem(id,name);else menus_[menu]->Append(id,name);commands_.push_back({id,name.BeforeFirst('\t')});};
     auto sep=[this](int menu){menus_[menu]->AppendSeparator();};
-    item(0,wxID_NEW,"Neu\tCtrl+N"_n);item(0,wxID_OPEN,"Öffnen…\tCtrl+O"_n);item(0,wxID_SAVE,"Speichern\tCtrl+S"_n);item(0,wxID_SAVEAS,"Speichern unter…\tCtrl+Shift+S"_n);item(0,ID_ALLSAVE,"Alle speichern"_n);sep(0);item(0,wxID_CLOSE,"Tab schließen\tCtrl+W"_n);item(0,ID_CLOSEALL,"Alle Tabs schließen"_n);item(0,ID_CLOSEOTHERS,"Andere Tabs schließen"_n);item(0,ID_REOPEN,"Geschlossenen Tab öffnen\tCtrl+Shift+T"_n);sep(0);item(0,wxID_EXIT,"Beenden"_n);
+    item(0,ID_EDITMENU,"Bearbeiten…"_n);item(0,ID_VIEWMENU,"Ansicht…"_n);sep(0);item(0,wxID_NEW,"Neu\tCtrl+N"_n);item(0,wxID_OPEN,"Öffnen…\tCtrl+O"_n);item(0,wxID_SAVE,"Speichern\tCtrl+S"_n);item(0,wxID_SAVEAS,"Speichern unter…\tCtrl+Shift+S"_n);item(0,ID_ALLSAVE,"Alle speichern"_n);sep(0);item(0,wxID_CLOSE,"Notiz schließen\tCtrl+W"_n);item(0,ID_CLOSEALL,"Alle Notizen schließen"_n);item(0,ID_CLOSEOTHERS,"Andere Notizen schließen"_n);item(0,ID_REOPEN,"Geschlossenen Notiz öffnen\tCtrl+Shift+T"_n);sep(0);item(0,wxID_EXIT,"Beenden"_n);
     item(1,wxID_UNDO,"Rückgängig\tCtrl+Z"_n);item(1,wxID_REDO,"Wiederholen\tCtrl+Y"_n);sep(1);item(1,wxID_CUT,"Ausschneiden\tCtrl+X"_n);item(1,wxID_COPY,"Kopieren\tCtrl+C"_n);item(1,wxID_PASTE,"Einfügen\tCtrl+V"_n);item(1,wxID_SELECTALL,"Alles auswählen\tCtrl+A"_n);sep(1);item(1,ID_DUPLICATE,"Zeile duplizieren\tCtrl+D"_n);item(1,ID_DELETE,"Zeile löschen"_n);item(1,ID_COMMENT,"Kommentar umschalten\tCtrl+Q"_n);item(1,ID_UPPER,"GROSSBUCHSTABEN"_n);item(1,ID_LOWER,"kleinbuchstaben"_n);item(1,ID_TRIM,"Leerzeichen am Zeilenende entfernen"_n);item(1,ID_SORT,"Ausgewählte Zeilen sortieren"_n);item(1,ID_TABSPACE,"Tabs in Leerzeichen"_n);item(1,ID_SPACETAB,"Einrückungs-Leerzeichen in Tabs"_n);
-    item(2,ID_THEME,"Dunkles Design"_n,true);item(2,ID_WRAP,"Zeilenumbruch"_n,true);item(2,ID_NUMBERS,"Zeilennummern und Lesezeichen"_n,true);item(2,ID_SPACES,"Leerzeichen anzeigen"_n,true);item(2,ID_INDENT,"Einrückungsführungen"_n,true);sep(2);item(2,ID_SPLIT,"Ansicht teilen"_n,true);item(2,ID_FOLDER,"Ordner öffnen…"_n);item(2,ID_FONT,"Schriftart…"_n);item(2,ID_ZOOMIN,"Vergrößern"_n);item(2,ID_ZOOMOUT,"Verkleinern"_n);item(2,ID_ZOOMRESET,"Zoom zurücksetzen"_n);sep(2);item(2,ID_FOLD,"Alles einklappen"_n);item(2,ID_UNFOLD,"Alles ausklappen"_n);
+    item(2,ID_THEME,"Dunkles Design"_n,true);item(2,ID_WRAP,"Zeilenumbruch"_n,true);item(2,ID_NUMBERS,"Zeilennummern und Lesezeichen"_n,true);item(2,ID_SPACES,"Leerzeichen anzeigen"_n,true);item(2,ID_INDENT,"Einrückungsführungen"_n,true);sep(2);item(2,ID_FULLSCREEN,"Vollbild\tF11"_n,true);item(2,ID_SPLIT,"Ansicht teilen"_n,true);item(2,ID_FOLDER,"Ordner öffnen…"_n);item(2,ID_FONT,"Schriftart…"_n);item(2,ID_ZOOMIN,"Vergrößern"_n);item(2,ID_ZOOMOUT,"Verkleinern"_n);item(2,ID_ZOOMRESET,"Zoom zurücksetzen"_n);sep(2);item(2,ID_FOLD,"Alles einklappen"_n);item(2,ID_UNFOLD,"Alles ausklappen"_n);
     item(3,ID_FIND,"Suchen…\tCtrl+F"_n);item(3,ID_REPLACE,"Ersetzen…\tCtrl+H"_n);item(3,ID_NEXT,"Weitersuchen\tF3"_n);item(3,ID_PREV,"Rückwärts suchen\tShift+F3"_n);item(3,ID_FINDALL,"Alle Treffer anzeigen"_n);item(3,ID_FIND_FILES,"In Dateien suchen…"_n);sep(3);item(3,ID_GOTO,"Gehe zu Zeile…\tCtrl+G"_n);item(3,ID_BOOKMARK,"Lesezeichen umschalten\tCtrl+F2"_n);item(3,ID_BOOKNEXT,"Nächstes Lesezeichen\tF2"_n);item(3,ID_BOOKPREV,"Vorheriges Lesezeichen"_n);
     item(4,ID_PALETTE,"Befehlspalette…\tCtrl+Shift+P"_n);item(4,ID_COMPLETE,"Wort vervollständigen\tCtrl+Space"_n);sep(4);item(4,ID_RECORD,"Makro aufnehmen / stoppen"_n,true);item(4,ID_PLAY,"Makro wiedergeben"_n);item(4,ID_MACRO_SAVE,"Makro speichern…"_n);item(4,ID_MACRO_LOAD,"Makro laden…"_n);sep(4);item(4,ID_ENCODING,"Encoding…"_n);item(4,ID_LF,"Zeilenenden → Unix (LF)"_n);item(4,ID_CRLF,"Zeilenenden → Windows (CRLF)"_n);item(4,ID_CR,"Zeilenenden → Mac (CR)"_n);item(4,ID_EXPORTHTML,"Als HTML exportieren…"_n);
     item(4,ID_LANGUAGE,"Sprache / Syntax…"_n);item(4,ID_PLUGIN,"Plugins…"_n);item(5,ID_UPDATE,"Nach Updates suchen…"_n);item(5,wxID_ABOUT,"Über Noty"_n);
-    item(6,wxID_CLOSE,"Tab schließen"_n);item(6,ID_CLOSEOTHERS,"Andere Tabs schließen"_n);item(6,ID_CLOSEALL,"Alle Tabs schließen"_n);item(6,ID_REOPEN,"Geschlossenen Tab öffnen"_n);
-    item(7,ID_THEME,"Dunkles Design"_n,true);item(7,ID_FONT,"Schriftart…"_n);item(7,ID_NUMBERS,"Zeilennummern"_n,true);item(7,ID_WRAP,"Zeilenumbruch"_n,true);item(7,ID_ENCODING,"Encoding…"_n);sep(7);item(7,ID_UPDATE,"Nach Updates suchen…"_n);
+    item(6,wxID_CLOSE,"Notiz schließen"_n);item(6,ID_CLOSEOTHERS,"Andere Notizen schließen"_n);item(6,ID_CLOSEALL,"Alle Notizen schließen"_n);item(6,ID_REOPEN,"Geschlossenen Notiz öffnen"_n);
+    item(7,ID_THEME,"Dunkles Design"_n,true);item(7,ID_FONT,"Schriftart…"_n);item(7,ID_NUMBERS,"Zeilennummern"_n,true);item(7,ID_WRAP,"Zeilenumbruch"_n,true);item(7,ID_ENCODING,"Encoding…"_n);sep(7);item(7,ID_UPDATE,"Nach Updates suchen…"_n);item(7,ID_AUTOUPDATE,"Updates automatisch vorbereiten"_n,true);item(7,ID_RESTART,"Update installieren und neu starten"_n);
     menus_[7]->AppendSubMenu(menus_[3].release(),"Suchen"_n);menus_[7]->AppendSubMenu(menus_[4].release(),"Werkzeuge"_n);menus_[7]->AppendSubMenu(menus_[5].release(),"Hilfe"_n);
 }
-void NotyFrame::Popup(int i){if(i<0||i>=static_cast<int>(menus_.size())||!menus_[i])return;auto* d=Current();for(int m:{2,7}){menus_[m]->Check(ID_THEME,dark_);menus_[m]->Check(ID_WRAP,d&&d->GetWrapMode()!=wxSTC_WRAP_NONE);menus_[m]->Check(ID_NUMBERS,d&&d->numbers);}menus_[2]->Check(ID_SPACES,d&&d->whitespace);menus_[2]->Check(ID_SPLIT,second_!=nullptr);menus_[7]->Check(ID_RECORD,recording_);PopupMenu(menus_[i].get(),ScreenToClient(wxGetMousePosition()));}
+void NotyFrame::Popup(int i){if(i<0||i>=static_cast<int>(menus_.size())||!menus_[i])return;auto* d=Current();for(int m:{2,7}){menus_[m]->Check(ID_THEME,dark_);menus_[m]->Check(ID_WRAP,d&&d->GetWrapMode()!=wxSTC_WRAP_NONE);menus_[m]->Check(ID_NUMBERS,d&&d->numbers);}menus_[2]->Check(ID_SPACES,d&&d->whitespace);menus_[2]->Check(ID_SPLIT,second_!=nullptr);menus_[7]->Check(ID_AUTOUPDATE,updater_->Automatic());menus_[7]->Enable(ID_RESTART,updater_->Ready());menus_[2]->Check(ID_FULLSCREEN,IsFullScreen());PopupMenu(menus_[i].get(),ScreenToClient(wxGetMousePosition()));}
 void NotyFrame::ShowFind(bool replacing){find_->Show();replacement_->Show(replacing);Layout();query_->SetFocus();if(Current()&&!Current()->GetSelectedText().empty()&&!Current()->GetSelectedText().Contains("\n"))query_->SetValue(Current()->GetSelectedText());query_->SelectAll();}
 void NotyFrame::Find(bool backwards,bool replacing,bool every){
     auto* active=Current();if(!active)return;if(query_->GetValue().empty()){ShowFind(replacing);return;}
@@ -249,21 +258,26 @@ void NotyFrame::Command(int id){
         wxArrayString names;for(auto& choice:choices)names.Add(choice.first);wxSingleChoiceDialog dialog(this,"Syntax auswählen"_n,"Sprache"_n,names);if(dialog.ShowModal()==wxID_OK){d->SetLexer(choices[dialog.GetSelection()].second);d->Theme(dark_);d->Colourise(0,-1);}break;}
     case ID_PLUGIN:Plugins();break;
     case ID_EXPORTHTML:{wxFileDialog dialog(this,"HTML exportieren"_n,wxEmptyString,"document.html","HTML|*.html",wxFD_SAVE|wxFD_OVERWRITE_PROMPT);if(dialog.ShowModal()==wxID_OK){auto text=d->GetText();text.Replace("&","&amp;");text.Replace("<","&lt;");text.Replace(">","&gt;");wxFile file(dialog.GetPath(),wxFile::write);auto html=Utf8("<!doctype html><meta charset=\"utf-8\"><pre>"+text+"</pre>");if(!file.IsOpened()||file.Write(html.data(),html.size())!=html.size())wxMessageBox("Export fehlgeschlagen."_n);}break;}
-    case ID_UPDATE:updater_->Check();break;
+    case ID_UPDATE:updater_->Check(true);break;
+    case ID_AUTOUPDATE:updater_->SetAutomatic(!updater_->Automatic());break;
+    case ID_RESTART:updater_->Restart();break;
+    case ID_EDITMENU:CallAfter([this]{Popup(1);});break;
+    case ID_VIEWMENU:CallAfter([this]{Popup(2);});break;
+    case ID_FULLSCREEN:ShowFullScreen(!IsFullScreen(),wxFULLSCREEN_ALL);break;
     case wxID_ABOUT:wxMessageBox("Noty " NOTY_VERSION "\nEin nativer Editor für Windows, macOS und Linux.\nhttps://github.com/Lyvt-Dev/Noty"_n,"Über Noty"_n,wxOK,this);break;
-    }chrome_->Refresh();UpdateStatus();
+    }sidebar_->Refresh();chrome_->Refresh();UpdateStatus();
 }
 #ifdef __WXMSW__
 WXLRESULT NotyFrame::MSWWindowProc(WXUINT message,WXWPARAM wp,WXLPARAM lp){
     HWND window=reinterpret_cast<HWND>(GetHandle());
-    if(message==WM_NCCALCSIZE&&wp){auto* params=reinterpret_cast<NCCALCSIZE_PARAMS*>(lp);if(IsZoomed(window)){MONITORINFO info{sizeof(info)};GetMonitorInfo(MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST),&info);params->rgrc[0]=info.rcWork;}return 0;}
+    if(message==WM_NCPAINT)return 0;
+    if(message==WM_NCACTIVATE)return TRUE;
+    if(message==WM_NCCALCSIZE&&wp){auto* params=reinterpret_cast<NCCALCSIZE_PARAMS*>(lp);if(IsZoomed(window)&&!IsFullScreen()){MONITORINFO info{sizeof(info)};GetMonitorInfo(MonitorFromWindow(window,MONITOR_DEFAULTTONEAREST),&info);params->rgrc[0]=info.rcWork;}return 0;}
     if(message==WM_NCHITTEST&&chrome_){POINT p{GET_X_LPARAM(lp),GET_Y_LPARAM(lp)};::ScreenToClient(window,&p);RECT area;::GetClientRect(window,&area);int edge=FromDIP(6);
-        if(!IsZoomed(window)){bool left=p.x<edge,right=p.x>=area.right-edge,top=p.y<edge,bottom=p.y>=area.bottom-edge;if(top&&left)return HTTOPLEFT;if(top&&right)return HTTOPRIGHT;if(bottom&&left)return HTBOTTOMLEFT;if(bottom&&right)return HTBOTTOMRIGHT;if(top)return HTTOP;if(bottom)return HTBOTTOM;if(left)return HTLEFT;if(right)return HTRIGHT;}
-        if(p.y<chrome_->FromDIP(44)){wxPoint point(p.x,p.y);int button=chrome_->CaptionButton(point);if(button==0)return HTMINBUTTON;if(button==1)return HTMAXBUTTON;if(button==2)return HTCLOSE;if(!chrome_->IsInteractive(point))return HTCAPTION;}
+        if(!IsZoomed(window)&&!IsFullScreen()){bool left=p.x<edge,right=p.x>=area.right-edge,top=p.y<edge,bottom=p.y>=area.bottom-edge;if(top&&left)return HTTOPLEFT;if(top&&right)return HTTOPRIGHT;if(bottom&&left)return HTBOTTOMLEFT;if(bottom&&right)return HTBOTTOMRIGHT;if(top)return HTTOP;if(bottom)return HTBOTTOM;if(left)return HTLEFT;if(right)return HTRIGHT;}
+        if(p.y<chrome_->FromDIP(64)){wxPoint point(p.x,p.y);int button=chrome_->CaptionButton(point);if(button==0)return HTMINBUTTON;if(button==1)return HTMAXBUTTON;if(button==2)return HTCLOSE;if(!chrome_->IsInteractive(point))return HTCAPTION;}
         return HTCLIENT;
     }
-    if(message==WM_NCLBUTTONDOWN&&(wp==HTMINBUTTON||wp==HTMAXBUTTON||wp==HTCLOSE))return DefWindowProcW(window,message,wp,lp);
-    if(message==WM_NCLBUTTONUP){if(wp==HTMINBUTTON){Iconize();return 0;}if(wp==HTMAXBUTTON){Maximize(!::IsZoomed(window));return 0;}if(wp==HTCLOSE){Close();return 0;}}
     return wxFrame::MSWWindowProc(message,wp,lp);
 }
 #endif
@@ -283,16 +297,25 @@ bool NotyFrame::SmokeTest(const wxString& screenshot){
     New();auto* unsaved=Current();unsaved->SetText("Nicht verlieren"_n);d->AppendText(" dirty");
     confirmChoice_=[d](NotyDocument* document){return document==d?wxNO:wxCANCEL;};require(!Close());require(d->Modified());require(!d->discardOnClose);
     confirmChoice_=[](NotyDocument*){return wxNO;};CloseTab(1);confirmChoice_=nullptr;Select(0);
+    auto clickButton=[](NotyIconButton* button){if(!button)return;wxMouseEvent down(wxEVT_LEFT_DOWN);down.SetPosition({button->GetClientSize().x/2,button->GetClientSize().y/2});button->GetEventHandler()->ProcessEvent(down);wxMouseEvent up(wxEVT_LEFT_UP);up.SetPosition(down.GetPosition());button->GetEventHandler()->ProcessEvent(up);};
+    clickButton(chrome_->fullscreen);require(IsFullScreen());clickButton(chrome_->fullscreen);require(!IsFullScreen());
+#ifdef __WXMSW__
+    clickButton(chrome_->maximize);require(IsZoomed(reinterpret_cast<HWND>(GetHandle()))!=FALSE);clickButton(chrome_->maximize);require(!IsMaximized());clickButton(chrome_->minimize);require(IsIconic(reinterpret_cast<HWND>(GetHandle()))!=FALSE);Iconize(false);
+    confirmChoice_=[](NotyDocument*){return wxCANCEL;};d->AppendText("unsaved");clickButton(chrome_->closeWindow);require(!closing_);require(d->Modified());confirmChoice_=nullptr;
+#endif
+    sidebar_->Click({FromDIP(60),FromDIP(65)});require(documents_.size()==2);sidebar_->Click({FromDIP(60),FromDIP(120)});require(Current()==d);confirmChoice_=[](NotyDocument*){return wxNO;};CloseTab(1);confirmChoice_=nullptr;
     d->path="Noty.txt";d->SetText("Hallo!\n\nGrüße aus Noty.\n"_n);d->SetSavePoint();New();Current()->path="Notizen.txt";New();Current()->path="Ideen.txt";Select(0);dark_=false;ApplyTheme();find_->Hide();Layout();Update();
-    if(!screenshot.empty()){
+    auto capture=[&](const wxString& filename){
         wxBitmap bitmap(GetClientSize().x,GetClientSize().y,32);wxMemoryDC dc(bitmap);
 #ifdef __WXMSW__
         ::ShowWindow(reinterpret_cast<HWND>(GetHandle()),SW_SHOWNOACTIVATE);::RedrawWindow(reinterpret_cast<HWND>(GetHandle()),nullptr,nullptr,RDW_INVALIDATE|RDW_UPDATENOW|RDW_ALLCHILDREN);
-        BOOL painted=PrintWindow(reinterpret_cast<HWND>(GetHandle()),static_cast<HDC>(dc.GetHDC()),PW_CLIENTONLY|2);require(painted!=FALSE);
+        wxYield();BOOL painted=PrintWindow(reinterpret_cast<HWND>(GetHandle()),static_cast<HDC>(dc.GetHDC()),PW_CLIENTONLY|2);require(painted!=FALSE);
+        wxBitmap editor(d->GetClientSize().x,d->GetClientSize().y,32);wxMemoryDC editorDC(editor);require(PrintWindow(reinterpret_cast<HWND>(d->GetHandle()),static_cast<HDC>(editorDC.GetHDC()),PW_CLIENTONLY)!=FALSE);auto origin=ScreenToClient(d->ClientToScreen({0,0}));dc.Blit(origin.x,origin.y,editor.GetWidth(),editor.GetHeight(),&editorDC,0,0);editorDC.SelectObject(wxNullBitmap);
 #else
         wxClientDC source(this);dc.Blit(0,0,GetClientSize().x,GetClientSize().y,&source,0,0);
 #endif
-        dc.SelectObject(wxNullBitmap);require(bitmap.SaveFile(screenshot,wxBITMAP_TYPE_PNG));
-    }
-    wxFile report(configDir_+wxFILE_SEP_PATH+"smoke-test.txt",wxFile::write);report.Write(ok?wxString("PASS: German UI, Unicode document, regex replacement, undo, bookmarks, split view, macro\n"):wxString("FAIL checks:")+errors+"\n");report.Close();return ok;
+        dc.SelectObject(wxNullBitmap);require(bitmap.SaveFile(filename,wxBITMAP_TYPE_PNG));
+    };
+    if(!screenshot.empty()){capture(screenshot);dark_=true;ApplyTheme();capture(screenshot.BeforeLast('.')+"-dark.png");dark_=false;ApplyTheme();SetSize(FromDIP(wxSize(720,480)));Layout();capture(screenshot.BeforeLast('.')+"-compact.png");}
+    wxFile report(configDir_+wxFILE_SEP_PATH+"smoke-test.txt",wxFile::write);report.Write(ok?wxString("PASS: German UI, Unicode document, regex replacement, undo, bookmarks, split view, macro, sidebar clicks, fullscreen and window controls\n"):wxString("FAIL checks:")+errors+"\n");report.Close();return ok;
 }
