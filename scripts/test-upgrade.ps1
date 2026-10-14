@@ -25,7 +25,14 @@ $update = Start-Process -FilePath $stagedHelper -ArgumentList "$($parent.Id)","`
 if ($update.ExitCode -ne 0) { throw 'Update installer failed' }
 $restarted = Get-CimInstance Win32_Process -Filter "Name='Noty.exe'" | Where-Object ExecutablePath -eq $installed
 if (-not $restarted) { throw 'Updated application was not restarted by the helper' }
+$visible = $false
+for ($attempt = 0; $attempt -lt 10; $attempt++) {
+  Start-Sleep -Milliseconds 300
+  $window = Get-Process -Id $restarted[0].ProcessId
+  if ($window.MainWindowHandle -ne 0) { $visible = $true; break }
+}
 $restarted | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+if (-not $visible) { throw 'Restarted Noty has no visible main window' }
 if (-not (Test-Path -LiteralPath 'build\Noty-windows-x64-setup.exe')) { throw 'Release installer was removed by the update test' }
 if ((Get-FileHash -LiteralPath $installed -Algorithm SHA256).Hash -ne $expected) { throw 'Existing installation was not updated in place' }
 if ((Get-Content -LiteralPath $marker) -ne 'preserve-existing-user-data') { throw 'Update removed existing user data' }
