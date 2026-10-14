@@ -6,6 +6,7 @@
 #include <thread>
 #include <array>
 #include <cerrno>
+#include <stdexcept>
 #include <picosha2.h>
 #ifdef _WIN32
 #include <windows.h>

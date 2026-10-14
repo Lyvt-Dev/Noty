@@ -15,6 +15,7 @@
 #include <wx/mstream.h>
 
 #include <algorithm>
+#include <memory>
 
 #ifdef __WXMSW__
 
