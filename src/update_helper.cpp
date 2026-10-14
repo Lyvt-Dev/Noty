@@ -52,7 +52,7 @@ int main(int argc,char** argv){
 #else
         for(int i=0;i<1200&&kill(pid,0)==0;i++)std::this_thread::sleep_for(std::chrono::milliseconds(100));if(kill(pid,0)==0)throw std::runtime_error("Application still running");
         if(executable!=fs::path("/usr/bin/Noty"))throw std::runtime_error("Automatic DEB updates require a system installation at /usr/bin/Noty");
-        if(!Run("pkexec",{"/usr/bin/dpkg","-i",package.string()}))throw std::runtime_error("Package installation failed or authorization canceled");
+        if(!(geteuid()==0?Run("/usr/bin/dpkg",{"-i",package.string()}):Run("pkexec",{"/usr/bin/dpkg","-i",package.string()})))throw std::runtime_error("Package installation failed or authorization canceled");
 #endif
         if(mode=="restart"){
 #ifdef _WIN32

@@ -60,6 +60,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/test-upgrade.ps1
+      - name: Upgrade existing macOS or Linux installation
+        if: runner.os != 'Windows'
+        shell: bash
+        run: bash scripts/test-upgrade-unix.sh
       - uses: actions/upload-artifact@v4
         with:
           name: Noty-${{ matrix.platform }}
